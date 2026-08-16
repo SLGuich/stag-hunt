@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0c">
 <title>Find the Groom</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <style>
   :root{
     --bg:#0a0a0c; --panel:#141419; --line:#26262e;
@@ -56,6 +60,12 @@
   }
   .alert{border-color:var(--red)!important;background:rgba(224,27,36,.12)!important;color:#ffb3b8!important}
   .good{border-color:var(--green)!important;background:rgba(26,158,60,.12)!important;color:#8ee79f!important}
+
+  .mapwrap{height:300px;border-radius:12px;border:1px solid var(--line);
+    margin-bottom:12px;overflow:hidden;background:#0e0e12;position:relative;z-index:0}
+  .maplegend{display:flex;gap:14px;justify-content:center;font-size:12px;color:var(--dim);
+    margin:-6px 0 12px}
+  .maplegend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
 
   /* bar rows: tappable main area + a maps button that opens the pub's pin */
   .barrow{display:flex;gap:8px;margin-bottom:10px}
@@ -150,25 +160,85 @@ const FIND_PTS = 5;
 
 /* Presented in brief order. img: drop photos in the repo's bars/ folder with
    these names — rows degrade gracefully while a photo is missing. */
+/* lat/lon geocoded from OpenStreetMap address data (Maverick's confirmed at
+   Chlumova 204/9 — the brief's "Žižkov 204" is the building number). */
 const BARS = [
-  { n:"U Sadu",                  a:"Škroupovo nám. 5",          img:"bars/u-sadu.jpg" },
-  { n:"Áčko Žižkov",             a:"Bořivojova 98",             img:"bars/acko-zizkov.jpg" },
-  { n:"Bukowski's Bar",          a:"Bořivojova 86",             img:"bars/bukowskis.jpg" },
-  { n:"Woodoo",                  a:"Bořivojova 69",             img:"bars/woodoo.jpg" },
-  { n:"Bar Bohužel",             a:"Bořivojova 61 · cash only", img:"bars/bohuzel.jpg" },
-  { n:"Theatrino Cocktail Bar",  a:"Bořivojova 53",             img:"bars/theatrino.jpg" },
-  { n:"Maverick's Irish pub",    a:"Žižkov 204",                img:"bars/mavericks.jpg" },
-  { n:"SMÄD craft beer bar",     a:"Táboritská 10",             img:"bars/smad.jpg" },
-  { n:"Pivoteka Žižkoff",        a:"Milíčova 6",                img:"bars/pivoteka.jpg" },
-  { n:"Pub a Bar Na Plech",      a:"Bořivojova 503",            img:"bars/na-plech.jpg" },
-  { n:"Tiki Taky Bar",           a:"Seifertova 20",             img:"bars/tiki-taky.jpg" },
-  { n:"Vlkova 26",               a:"Vlkova 26",                 img:"bars/vlkova-26.jpg" },
+  { n:"U Sadu",                  a:"Škroupovo nám. 5",          img:"bars/u-sadu.jpg",      lat:50.08078, lon:14.44900 },
+  { n:"Áčko Žižkov",             a:"Bořivojova 98",             img:"bars/acko-zizkov.jpg", lat:50.08272, lon:14.44717 },
+  { n:"Bukowski's Bar",          a:"Bořivojova 86",             img:"bars/bukowskis.jpg",   lat:50.08305, lon:14.44858 },
+  { n:"Woodoo",                  a:"Bořivojova 69",             img:"bars/woodoo.jpg",      lat:50.08322, lon:14.45000 },
+  { n:"Bar Bohužel",             a:"Bořivojova 61 · cash only", img:"bars/bohuzel.jpg",     lat:50.08347, lon:14.45109 },
+  { n:"Theatrino Cocktail Bar",  a:"Bořivojova 53",             img:"bars/theatrino.jpg",   lat:50.08342, lon:14.45260 },
+  { n:"Maverick's Irish pub",    a:"Chlumova 9",                img:"bars/mavericks.jpg",   lat:50.08496, lon:14.45266 },
+  { n:"SMÄD craft beer bar",     a:"Táboritská 10",             img:"bars/smad.jpg",        lat:50.08333, lon:14.45414 },
+  { n:"Pivoteka Žižkoff",        a:"Milíčova 6",                img:"bars/pivoteka.jpg",    lat:50.08476, lon:14.45108 },
+  { n:"Pub a Bar Na Plech",      a:"Bořivojova 103",            img:"bars/na-plech.jpg",    lat:50.08208, lon:14.44511 },
+  { n:"Tiki Taky Bar",           a:"Seifertova 20",             img:"bars/tiki-taky.jpg",   lat:50.08456, lon:14.44802 },
+  { n:"Vlkova 26",               a:"Vlkova 26",                 img:"bars/vlkova-26.jpg",   lat:50.08336, lon:14.44686 },
 ];
 function mapsUrl(b){
   const addr = b.a.split("·")[0].trim();
   return "https://www.google.com/maps/search/?api=1&query=" +
          encodeURIComponent(b.n + ", " + addr + ", Žižkov, Praha 3");
 }
+
+/* ========================================================== live map ==== */
+/* Leaflet over CARTO dark tiles. Rebuilt per render (the container is wiped
+   by innerHTML); degrades to nothing if the CDN never loaded. */
+let mapOpen = false;
+const mapInstances = {};
+
+function mountMap(id, routes, opts){
+  const box = document.getElementById(id);
+  if(!box) return;
+  if(typeof L === "undefined"){
+    box.innerHTML = '<div style="padding:20px;color:var(--dim);text-align:center">Map unavailable — no signal.</div>';
+    return;
+  }
+  const o = opts || {};
+  if(mapInstances[id]){ try{ mapInstances[id].remove(); }catch(e){} }
+  const map = L.map(box, { zoomControl: true, attributionControl: true });
+  mapInstances[id] = map;
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    subdomains: "abcd", maxZoom: 20,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  }).addTo(map);
+
+  const visited = {};
+  routes.forEach(rt => rt.bars.forEach(b => { visited[b] = true; }));
+
+  BARS.forEach(b => {
+    if(visited[b.n]) return;
+    L.circleMarker([b.lat, b.lon], {
+      radius: 5, color: "#8c8c99", weight: 1.5, fillColor: "#8c8c99", fillOpacity: .25,
+    }).addTo(map).bindTooltip(b.n);
+  });
+
+  routes.forEach(rt => {
+    const pts = rt.bars.map(n => BAR_XY[n]).filter(Boolean);
+    if(pts.length > 1){
+      L.polyline(pts, { color: rt.color, weight: 3, opacity: .75, dashArray: "6 6" }).addTo(map);
+    }
+    rt.bars.forEach((n, i) => {
+      const p = BAR_XY[n]; if(!p) return;
+      const found = rt.found === n;
+      L.marker(p, { icon: L.divIcon({ className: "", iconSize: [24, 24], iconAnchor: [12, 12],
+        html: `<div style="width:24px;height:24px;border-radius:50%;border:2px solid #fff;
+                 background:${found ? "#1a9e3c" : rt.color};color:#0a0a0c;text-align:center;
+                 font:800 12px/20px -apple-system,sans-serif">${found ? "✓" : i + 1}</div>` }),
+      }).addTo(map).bindTooltip(n + (found ? " — found him!" : ""));
+    });
+  });
+
+  (o.bananas || []).forEach(n => {
+    const p = BAR_XY[n]; if(!p) return;
+    L.marker(p, { icon: L.divIcon({ className: "", iconSize: [20, 20], iconAnchor: [-2, 22],
+      html: '<div style="font-size:17px">🍌</div>' }) }).addTo(map);
+  });
+
+  map.fitBounds(L.latLngBounds(BARS.map(b => [b.lat, b.lon])).pad(0.18));
+}
+const BAR_XY = Object.fromEntries(BARS.map(b => [b.n, [b.lat, b.lon]]));
 
 const POLL_MS = 6000;
 const RPC_TIMEOUT_MS = 12000;
@@ -244,14 +314,30 @@ async function refresh(){
   if(sig !== lastSig){ lastSig = sig; render(); }
 }
 
+let adminSig = "";
 async function adminRefresh(){
   if(!admin) return;
   const ae = document.activeElement;
   if(ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;
   try{
     const r = await rpc("stag_admin", { p_pass: adminPass, p_action: "read" });
-    if(r.ok){ admin = r; renderAdmin(); }
+    if(!r.ok) return;
+    admin = r;
+    // Re-render only when the data changed, so the map keeps its pan/zoom.
+    const sig = JSON.stringify({ ...r, server_now: 0 });
+    if(sig !== adminSig){ adminSig = sig; renderAdmin(); }
   }catch(e){ /* keep last good feed */ }
+}
+
+/* Per-team cooldown remaining, from the admin payload (tick keeps it live). */
+function adminLockLeft(t){
+  if(!admin) return 0;
+  const gs = (admin.guesses || []).filter(x => x.team === t);
+  if(!gs.length) return 0;
+  const last = Math.max(...gs.map(x => new Date(x.at).getTime()));
+  const w = admin.unlocks && admin.unlocks[t] ? new Date(admin.unlocks[t]).getTime() : 0;
+  if(w > last) return 0;
+  return Math.max(0, last + admin.game.cooldown_seconds * 1000 - serverNow());
 }
 
 /* ========================================================== cooldown === */
@@ -552,6 +638,10 @@ function renderGuessList(){
     <h1 style="${offline ? "margin-top:26px" : ""}">Where are you?</h1>
     <p class="sub">Team ${team} · ${mine.length} of ${BARS.length} tried · 🍌 ×${banLeft}</p>
     ${scoreStrip()}
+    <button class="btn ghost" id="maptoggle"
+            style="min-height:48px;text-align:center;margin-bottom:10px">
+      ${mapOpen ? "Hide map" : "🗺 Show map"}</button>
+    ${mapOpen ? '<div id="pmap" class="mapwrap"></div>' : ""}
     ${note}${foundBox}${hint}${retry}
     ${BARS.map((b, i) => {
       const g = gs.find(x => x.bar === b.n);
@@ -586,6 +676,12 @@ function renderGuessList(){
       🍌 Trap a bar you've visited — rivals who guess it drink a DOUBLED forfeit.</p>
   `);
 
+  document.getElementById("maptoggle").onclick = () => { mapOpen = !mapOpen; render(); };
+  if(mapOpen){
+    const foundBar = (gs.find(x => x.correct) || {}).bar;
+    mountMap("pmap", [{ team, color: TEAM_COLOR[team], bars: mine, found: foundBar }],
+             { bananas: myBan });
+  }
   el.querySelectorAll("[data-i]").forEach(b => b.onclick = () => {
     notice = null; pending = BARS[+b.dataset.i]; sheetArmedAt = Date.now(); render();
   });
@@ -777,19 +873,12 @@ function renderAdmin(){
   });
   const early = { "Pivoteka Žižkoff":"closes 22:00", "SMÄD craft beer bar":"closes 00:00" };
 
-  const lockLeft = t => {
-    const gs = feed.filter(x => x.team === t);
-    if(!gs.length) return 0;
-    const last = Math.max(...gs.map(x => new Date(x.at).getTime()));
-    const w = admin.unlocks && admin.unlocks[t] ? new Date(admin.unlocks[t]).getTime() : 0;
-    if(w > last) return 0;
-    return Math.max(0, last + g.cooldown_seconds * 1000 - serverNow());
-  };
+  adminSig = JSON.stringify({ ...admin, server_now: 0 });
 
   const teamCards = TEAMS.map(t => {
     const gs = feed.filter(x => x.team === t);
     const last = gs[0];
-    const lock = lockLeft(t);
+    const lock = adminLockLeft(t);
     const myBans = bans.filter(b => b.team === t);
     const photos = gs.filter(x => x.photo).length;
     const wrongs = gs.filter(x => !x.correct).length;
@@ -803,7 +892,8 @@ function renderAdmin(){
         <span>${sc[t] || 0} pts</span></div>
       <div style="color:var(--dim);font-size:13px;margin-top:3px">
         ${gs.length}/${BARS.length} bars · 🍌 ${3 - myBans.length} left · 📸 ${photos}/${wrongs}
-        · ${lock > 0 ? `locked ${mmss(lock)}` : owesProof ? "⏳ owes proof" : "free"}
+        · <span data-lock="${t}" data-owes="${owesProof ? 1 : 0}">${
+            lock > 0 ? `locked ${mmss(lock)}` : owesProof ? "⏳ owes proof" : "free"}</span>
         ${last ? `<br>last: ${esc(last.bar)}${last.correct ? " ✓"
                  : g.wheel_enabled ? " — " + forfeitText(forfeitOf(t, last), last.mult) : ""}` : ""}</div>
     </div>`;
@@ -820,6 +910,11 @@ function renderAdmin(){
 
     <label>Teams</label>
     ${teamCards}
+
+    <label>All routes</label>
+    <div id="amap" class="mapwrap"></div>
+    <div class="maplegend">${TEAMS.map(t =>
+      `<span><i style="background:${TEAM_COLOR[t]}"></i>${t}</span>`).join("")}</div>
 
     ${bans.length ? `<div class="card" style="font-size:13px;color:var(--dim)">
        ${bans.map(b => `🍌 ${b.team} trapped ${esc(b.bar)}`).join("<br>")}</div>` : ""}
@@ -911,6 +1006,12 @@ function renderAdmin(){
     if(n && v) n.value = v;
   });
 
+  mountMap("amap", TEAMS.map(t => ({
+    team: t, color: TEAM_COLOR[t],
+    bars: feed.filter(x => x.team === t).slice().reverse().map(x => x.bar),
+    found: (feed.find(x => x.team === t && x.correct) || {}).bar,
+  })), { bananas: bans.map(b => b.bar) });
+
   document.getElementById("target").onchange = e => adminCall("set_target", e.target.value);
   document.getElementById("cd").onchange = e => {
     const m = parseInt(e.target.value, 10);
@@ -971,7 +1072,16 @@ setInterval(refresh, POLL_MS);
    wheel, an upload, or an open sheet. */
 let lastLeft = 0;
 setInterval(() => {
-  if(location.hash === "#admin" || !team || !state || spinning || uploading) return;
+  if(location.hash === "#admin"){
+    // keep the team cards' lock countdowns moving without a full re-render
+    if(admin) el.querySelectorAll("[data-lock]").forEach(s => {
+      const ms = adminLockLeft(s.dataset.lock);
+      s.textContent = ms > 0 ? "locked " + mmss(ms)
+                    : s.dataset.owes === "1" ? "⏳ owes proof" : "free";
+    });
+    return;
+  }
+  if(!team || !state || spinning || uploading) return;
   const l = cooldownLeft();
   const t = document.getElementById("cdtimer");
   if(l > 0){
