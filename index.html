@@ -61,6 +61,7 @@
     align-items:center;justify-content:center;text-align:center;padding:24px;
     padding-bottom:calc(24px + env(safe-area-inset-bottom));
   }
+  .full{overflow-y:auto}
   .full.wrong{background:var(--red)}
   .full.win{background:var(--green)}
   .full.over{background:var(--panel)}
@@ -163,14 +164,32 @@ async function rpc(fn, body){
   return data;
 }
 
+let lastSig = "";
 async function refresh(){
+  if(location.hash === "#admin") return adminRefresh();
   try{
     state = await rpc("stag_state", { p_team: team });
     offline = false;
   }catch(e){
     offline = true;
   }
-  render();
+  // A poll only repaints when something actually changed, and never while the
+  // confirm sheet is up — rebuilding the DOM under a thumb mid-tap loses taps.
+  if(pending || sending || spinning) return;
+  const sig = JSON.stringify([state ? { ...state, server_now: 0 } : null, offline, team]);
+  if(sig !== lastSig){ lastSig = sig; render(); }
+}
+
+/* Background poll for the admin screen: keeps the live feed fresh without
+   wiping the form while the organiser is typing in it. */
+async function adminRefresh(){
+  if(!admin) return;
+  const ae = document.activeElement;
+  if(ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;
+  try{
+    const r = await rpc("stag_admin", { p_pass: adminPass, p_action: "read" });
+    if(r.ok){ admin = r; renderAdmin(); }
+  }catch(e){ /* keep showing the last good feed */ }
 }
 
 /* ========================================================== cooldown === */
@@ -186,6 +205,75 @@ function mmss(ms){
   return String(Math.floor(s / 60)).padStart(2,"0") + ":" + String(s % 60).padStart(2,"0");
 }
 function buzz(pattern){ try{ navigator.vibrate && navigator.vibrate(pattern); }catch(e){} }
+
+/* =========================================================== forfeit ==== */
+/* The wheel decides how many of the team drink and what. The outcome is a
+   pure hash of team+bar, so every phone on the team lands on the same result
+   no matter who spins, and a refresh can't reroll it. */
+const DRINKS = ["BECHEROVKA","SLIVOVICE","FERNET","ABSINTH","PIVO","ZELENÁ"];
+const COUNTS = [1,2,2,3,3,3,4,4,5,5];   // weighted towards the middle
+let spinning = false;
+
+function forfeitFor(team, bar){
+  let x = 2166136261;                    // FNV-1a
+  const s = team + "|" + bar;
+  for(let i = 0; i < s.length; i++){ x = Math.imul(x ^ s.charCodeAt(i), 16777619) >>> 0; }
+  const drink  = x % DRINKS.length;
+  const count  = COUNTS[Math.floor(x / 13) % COUNTS.length];
+  const jitter = (Math.floor(x / 131) % 37) - 18;   // ±18°, stays inside the segment
+  return { count, drink: DRINKS[drink], rotation: 5 * 360 - drink * 60 + jitter };
+}
+function forfeitText(f){
+  return (f.count === 5 ? "ALL 5" : f.count) + " × " + f.drink;
+}
+
+function wheelHTML(f, spun){
+  const r = 140;
+  const segs = DRINKS.map((d, i) => {
+    const a0 = (i * 60 - 30 - 90) * Math.PI / 180, a1 = (i * 60 + 30 - 90) * Math.PI / 180;
+    return `<path d="M0 0 L${(Math.cos(a0)*r).toFixed(1)} ${(Math.sin(a0)*r).toFixed(1)}
+                     A${r} ${r} 0 0 1 ${(Math.cos(a1)*r).toFixed(1)} ${(Math.sin(a1)*r).toFixed(1)} Z"
+             fill="rgba(255,255,255,${i % 2 ? ".30" : ".16"})"/>
+            <text transform="rotate(${i * 60}) translate(0 -${r * 0.60})" text-anchor="middle"
+              font-size="12.5" font-weight="700" fill="#fff">${d}</text>`;
+  }).join("");
+  return `
+    <svg width="225" height="235" viewBox="-150 -158 300 316" style="display:block;margin:6px auto 0">
+      <polygon points="-13,-156 13,-156 0,-132" fill="#fff"/>
+      <g id="wheelg" style="${spun ? `transform:rotate(${f.rotation}deg)` : ""}">
+        <circle r="${r}" fill="rgba(0,0,0,.25)"/>
+        ${segs}
+      </g>
+      <circle r="36" fill="rgba(0,0,0,.45)"/>
+      <text id="fcount" y="13" text-anchor="middle" font-size="38" font-weight="800"
+            fill="#fff">${spun ? f.count : "?"}</text>
+    </svg>
+    ${spun ? "" : `<button class="btn" id="spinbtn" style="background:#fff;color:var(--red);
+       text-align:center;font-weight:800;min-height:56px;width:230px;margin:12px auto 0">SPIN</button>`}`;
+}
+
+function spinWheel(f, key){
+  if(spinning) return;
+  spinning = true;
+  const gEl = document.getElementById("wheelg");
+  const btn = document.getElementById("spinbtn");
+  if(btn) btn.style.visibility = "hidden";
+  const cnt  = document.getElementById("fcount");
+  const roll = setInterval(() => { if(cnt) cnt.textContent = 1 + Math.floor(Math.random() * 5); }, 90);
+  gEl.style.transition = "transform 3.2s cubic-bezier(.12,.65,.08,1)";
+  requestAnimationFrame(() => { gEl.style.transform = `rotate(${f.rotation}deg)`; });
+  setTimeout(() => {
+    clearInterval(roll);
+    if(cnt) cnt.textContent = f.count;
+    const res = document.getElementById("fresult");
+    if(res) res.textContent = forfeitText(f);
+    const ord = document.getElementById("ford");
+    if(ord) ord.textContent = "Buy the round before you move on.";
+    buzz([80, 40, 80, 40, 200]);
+    remember(key, "1");
+    spinning = false;
+  }, 3350);
+}
 
 /* ============================================================ actions === */
 async function submitGuess(bar){
@@ -327,15 +415,30 @@ function renderConfirm(){
 }
 
 function renderCooldown(left){
-  const last = (state.my_guesses || []).slice(-1)[0];
+  const last    = (state.my_guesses || []).slice(-1)[0];
+  const f       = last ? forfeitFor(team, last.bar) : null;
+  const spunKey = last ? "stag_spun_" + team + "_" + last.bar : null;
+  const spun    = spunKey && recall(spunKey) === "1";
   h(`
-    <div class="full wrong">
-      <p class="huge">NOT<br>HERE</p>
-      <p class="order">Buy a round<br>before you move on.</p>
-      <p class="timer">${mmss(left)}</p>
-      <p class="timerlabel">until you can guess again</p>
-      ${last ? `<p class="whichbar">Wrong: ${esc(last.bar)}</p>` : ""}
+    <div class="full wrong" style="justify-content:flex-start">
+      <div style="margin:auto;display:flex;flex-direction:column;align-items:center;padding:10px 0">
+        <p class="huge" style="font-size:clamp(36px,11vw,56px)">NOT HERE</p>
+        <p class="order" id="ford" style="font-size:clamp(19px,5.5vw,26px)">
+          ${spun ? "Buy the round before you move on." : "Spin for the forfeit round."}</p>
+        ${f ? wheelHTML(f, spun) : ""}
+        <p class="order" id="fresult"
+           style="min-height:1.2em;font-size:clamp(22px,7vw,30px);margin-top:10px">
+          ${spun && f ? forfeitText(f) : ""}</p>
+        <p class="timer" id="cdtimer"
+           style="font-size:clamp(38px,11vw,60px);margin:14px 0 2px">${mmss(left)}</p>
+        <p class="timerlabel">until you can guess again</p>
+        ${last ? `<p class="whichbar">Wrong: ${esc(last.bar)}</p>` : ""}
+      </div>
     </div>`);
+  if(f && !spun){
+    const b = document.getElementById("spinbtn");
+    if(b) b.onclick = () => spinWheel(f, spunKey);
+  }
 }
 
 function renderWin(){
@@ -471,8 +574,21 @@ render();
 refresh();
 
 setInterval(refresh, POLL_MS);
-setInterval(() => {                     // keep the countdown moving
-  if(team && state && location.hash !== "#admin" && cooldownLeft() > 0) render();
+
+/* Countdown tick. Updates the timer text in place rather than re-rendering,
+   so it can never interrupt the wheel animation or eat a tap. */
+let lastLeft = 0;
+setInterval(() => {
+  if(location.hash === "#admin" || !team || !state || pending || sending || spinning) return;
+  const l = cooldownLeft();
+  const t = document.getElementById("cdtimer");
+  if(l > 0){
+    if(t) t.textContent = mmss(l);
+    else if(state.status === "running") render();  // e.g. woke from a locked phone
+  }else if(lastLeft > 0){
+    render();                                      // cooldown just expired
+  }
+  lastLeft = l;
 }, 500);
 
 document.addEventListener("visibilitychange", () => { if(!document.hidden) refresh(); });
