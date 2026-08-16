@@ -125,9 +125,10 @@
   .sheet h2{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
   .sheet p{color:var(--dim);margin:0 0 20px;font-size:14px}
 
-  input,select{
+  input,select,textarea{
     width:100%;padding:14px;background:#0e0e12;color:var(--ink);
     border:1px solid var(--line);border-radius:12px;font:inherit;margin-bottom:10px;
+    resize:vertical;
   }
   label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.1em;
     color:var(--dim);margin:16px 0 6px}
@@ -304,6 +305,7 @@ async function refresh(){
     const data = await rpc("stag_state", { p_team: team });
     if(id !== refreshId) return;
     state = data; offline = false;
+    if(data.wheel_options) setWheelOptions(data.wheel_options);
     if(data.server_now) clockSkew = new Date(data.server_now).getTime() - Date.now();
   }catch(e){
     if(id !== refreshId) return;
@@ -355,14 +357,25 @@ function buzz(pattern){ try{ navigator.vibrate && navigator.vibrate(pattern); }c
 /* =========================================================== forfeit ==== */
 /* Outcome is a pure hash of team+bar: every phone lands on the same result,
    and a refresh can't reroll it. Banana multiplier comes from the server. */
-const DRINKS = [
-  { label: ["PINTS"],              text: "PINTS OF LAGER" },
-  { label: ["SHOTS"],              text: "SHOTS" },
-  { label: ["MIXERS"],             text: "MIXERS" },
-  { label: ["BARMAN'S", "CHOICE"], text: "BARMAN'S CHOICE" },
-  { label: ["FREE", "PASS"],       text: "FREE PASS", free: true },
+const DEFAULT_WHEEL = [
+  { t: "PINTS OF LAGER" }, { t: "SHOTS" }, { t: "MIXERS" },
+  { t: "BARMAN'S CHOICE" }, { t: "FREE PASS", free: true },
 ];
-const SEG = 360 / DRINKS.length;
+function drinkLabel(t){
+  const words = t.toUpperCase().split(/\s+/);
+  if(words.length === 1) return words;
+  if(words.length === 2 && (words[0] + words[1]).length <= 10) return [words.join(" ")];
+  const mid = Math.ceil(words.length / 2);
+  return [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
+}
+let DRINKS = [], SEG = 72;
+function setWheelOptions(opts){
+  if(!Array.isArray(opts) || opts.length < 2) opts = DEFAULT_WHEEL;
+  DRINKS = opts.map(o => ({ label: drinkLabel(o.t), text: String(o.t).toUpperCase(),
+                            free: !!o.free }));
+  SEG = 360 / DRINKS.length;
+}
+setWheelOptions(DEFAULT_WHEEL);
 const COUNTS = [1,2,2,3,3,3,4,4,5,5];
 let resultHoldUntil = 0;   // keeps a settled result on screen briefly even
                            // when the cooldown has already expired
@@ -383,19 +396,26 @@ function forfeitText(f, mult){
   return (n === 5 ? "ALL 5" : n) + " × " + f.drink.text;
 }
 
-/* Forfeit for a specific guess row: a server-stamped rig wins over the hash.
-   The wheel still animates identically — it just lands where it's told. */
+/* Forfeit for a specific guess row: the server-stamped outcome is the truth.
+   Stored text/free flag win over the current wheel config, so an admin edit
+   can never rewrite a forfeit already dealt. cfgMatch=false means the wheel
+   has changed since the stamp — skip the animation, show the result plain. */
 function forfeitOf(teamName, g){
   if(g.rig_d != null){
-    const d = DRINKS[g.rig_d] || DRINKS[0];
+    const cur  = DRINKS[g.rig_d];
+    const text = (g.rig_t || (cur && cur.text) || "MYSTERY ROUND").toUpperCase();
+    const free = g.rig_f != null ? !!g.rig_f : !!(cur && cur.free);
+    const cfgMatch = !!cur && (!g.rig_t || cur.text === text);
     let x = 2166136261;
     const s = teamName + "|" + g.bar;
     for(let i = 0; i < s.length; i++){ x = Math.imul(x ^ s.charCodeAt(i), 16777619) >>> 0; }
     const jitter = (Math.floor(x / 131) % 37) - 18;
-    return { count: g.rig_c || 1, drink: d, free: !!d.free,
+    return { count: g.rig_c || 1, drink: { text }, free, cfgMatch,
              rotation: 5 * 360 - g.rig_d * SEG + jitter };
   }
-  return forfeitFor(teamName, g.bar);
+  const f = forfeitFor(teamName, g.bar);
+  f.cfgMatch = true;
+  return f;
 }
 
 function wheelHTML(f, spun, mult){
@@ -459,12 +479,13 @@ function applyLocalGuess(bar, r){
       bar, correct: r.result === "correct", at,
       mult: r.mult || 1, by: r.by || null, photo: null,
       rig_d: r.rig_d != null ? r.rig_d : null, rig_c: r.rig_c != null ? r.rig_c : null,
+      rig_t: r.rig_t || null, rig_f: !!r.rig_f,
     }]);
   }
   state.last_guess_at = at;
   if(r.cooldown_seconds != null) state.cooldown_seconds = r.cooldown_seconds;
   state.proof_due = (r.result === "wrong" && state.wheel !== false &&
-                     r.rig_d != null && r.rig_d !== 4) ? bar : null;
+                     r.rig_d != null && !r.rig_f) ? bar : null;
 }
 
 async function submitGuess(bar){
@@ -749,7 +770,9 @@ function renderCooldown(left, last){
   // Keyed by the guess timestamp too, so an admin reset + re-guess of the
   // same bar gets a fresh spin instead of a stale settled wheel.
   const spunKey = "stag_spun_" + team + "_" + last.bar + "_" + (last.at || "");
-  const spun    = isSpun(spunKey);
+  // A wheel edited since this outcome was stamped can't animate to it — show
+  // the result plainly instead of landing on a mislabeled segment.
+  const spun    = isSpun(spunKey) || (f && f.cfgMatch === false);
   const showProof = f && spun && !f.free;
   const proofDue  = state.proof_due === last.bar && !last.photo;
   const ordText = !f  ? "Buy a round before you move on."
@@ -763,7 +786,7 @@ function renderCooldown(left, last){
         ${mult > 1 ? `<div class="banbanner">🍌 BANANA'D BY ${by.map(esc).join(" & ") || "A RIVAL"}
             — FORFEIT ${mult === 2 ? "DOUBLED" : "×" + mult}</div>` : ""}
         <p class="order" id="ford">${ordText}</p>
-        ${f ? wheelHTML(f, spun, mult) : ""}
+        ${f && f.cfgMatch !== false ? wheelHTML(f, spun, mult) : ""}
         <p class="order" id="fresult" style="min-height:1.2em;margin-top:10px">
           ${spun && f ? forfeitText(f, mult) : ""}</p>
         ${showProof ? (
@@ -867,13 +890,14 @@ function renderAdmin(){
   const bans  = admin.bananas || [];
   // Preserve half-composed controls across the background re-render.
   const keep = {};
-  ["rigteam", "rigdrink", "rigcount", "newpass"].forEach(id => {
+  ["rigteam", "rigdrink", "rigcount", "newpass", "wheelopts"].forEach(id => {
     const n = document.getElementById(id);
     if(n) keep[id] = n.value;
   });
   const early = { "Pivoteka Žižkoff":"closes 22:00", "SMÄD craft beer bar":"closes 00:00" };
 
   adminSig = JSON.stringify({ ...admin, server_now: 0 });
+  if(admin.game.wheel_options) setWheelOptions(admin.game.wheel_options);
 
   const teamCards = TEAMS.map(t => {
     const gs = feed.filter(x => x.team === t);
@@ -884,7 +908,7 @@ function renderAdmin(){
     const wrongs = gs.filter(x => !x.correct).length;
     const w = admin.unlocks && admin.unlocks[t] ? new Date(admin.unlocks[t]).getTime() : 0;
     const owesProof = !!(last && !last.correct && !last.photo && g.wheel_enabled
-                         && last.rig_d != null && last.rig_d !== 4
+                         && last.rig_d != null && !last.rig_f
                          && !(w > new Date(last.at).getTime()));
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;font-weight:700">
@@ -940,6 +964,13 @@ function renderAdmin(){
     <button class="btn ghost" style="text-align:center" id="wheel">
       ${g.wheel_enabled ? "ON — tap to disable" : "OFF — tap to enable"}
     </button>
+
+    <label>Wheel segments (one per line · end with * for a free pass · 2–8)</label>
+    <textarea id="wheelopts" rows="6" spellcheck="false">${
+      esc((g.wheel_options || []).map(o => o.t + (o.free ? " *" : "")).join("\n"))
+    }</textarea>
+    <button class="btn ghost" style="text-align:center;border-color:var(--amber);color:#f0d98a"
+            id="savewheel">Save wheel segments</button>
 
     <label>Reveal rivals' bars to everyone</label>
     <button class="btn ghost" style="text-align:center" id="rivals">
@@ -1025,6 +1056,20 @@ function renderAdmin(){
     adminCall("set_hint_after", String(n));
   };
   document.getElementById("wheel").onclick  = () => adminCall("set_wheel", g.wheel_enabled ? "false" : "true");
+  document.getElementById("savewheel").onclick = () => {
+    const lines = document.getElementById("wheelopts").value
+      .split("\n").map(s => s.trim()).filter(Boolean);
+    if(lines.length < 2 || lines.length > 8){
+      alert("Between 2 and 8 segments, one per line."); return;
+    }
+    const opts = lines.map(s => {
+      const free = /\*\s*$/.test(s);
+      return { t: s.replace(/\*\s*$/, "").trim(), ...(free ? { free: true } : {}) };
+    });
+    if(opts.some(o => !o.t)){ alert("A segment has no text."); return; }
+    if(!confirm("Replace the wheel with " + opts.length + " segments? Teams mid-forfeit keep their dealt result.")) return;
+    adminCall("set_wheel_options", JSON.stringify(opts));
+  };
   document.getElementById("rivals").onclick = () => adminCall("set_rivals", g.show_rivals ? "false" : "true");
   el.querySelectorAll("[data-unlock]").forEach(b =>
     b.onclick = () => adminCall("unlock", b.dataset.unlock));
