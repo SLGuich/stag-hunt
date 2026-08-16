@@ -57,6 +57,15 @@
   .alert{border-color:var(--red)!important;background:rgba(224,27,36,.12)!important;color:#ffb3b8!important}
   .good{border-color:var(--green)!important;background:rgba(26,158,60,.12)!important;color:#8ee79f!important}
 
+  /* bar rows: tappable main area + a maps button that opens the pub's pin */
+  .barrow{display:flex;gap:8px;margin-bottom:10px}
+  .barrow .btn{flex:1;margin:0;display:flex;align-items:center;gap:12px}
+  .loc{width:58px;min-height:66px;border-radius:14px;border:1px solid var(--line);
+    background:var(--panel);display:flex;align-items:center;justify-content:center;
+    font-size:24px;text-decoration:none;flex:none}
+  .loc:active{transform:scale(.95)}
+  .thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;flex:none}
+
   /* visited bars: struck-through info + live banana-trap / photo badges */
   .usedrow{display:flex;align-items:center;gap:10px;background:var(--panel);
     border:1px solid var(--line);border-radius:14px;padding:10px 16px;margin-bottom:10px;
@@ -139,21 +148,27 @@ const TEAMS = ["ALPHA", "BRAVO", "CHARLIE"];
 const TEAM_COLOR = { ALPHA: "var(--alpha)", BRAVO: "var(--bravo)", CHARLIE: "var(--charlie)" };
 const FIND_PTS = 5;
 
-/* Presented in brief order. */
+/* Presented in brief order. img: drop photos in the repo's bars/ folder with
+   these names — rows degrade gracefully while a photo is missing. */
 const BARS = [
-  { n:"U Sadu",                  a:"Škroupovo nám. 5" },
-  { n:"Áčko Žižkov",             a:"Bořivojova 98" },
-  { n:"Bukowski's Bar",          a:"Bořivojova 86" },
-  { n:"Woodoo",                  a:"Bořivojova 69" },
-  { n:"Bar Bohužel",             a:"Bořivojova 61 · cash only" },
-  { n:"Theatrino Cocktail Bar",  a:"Bořivojova 53" },
-  { n:"Maverick's Irish pub",    a:"Žižkov 204" },
-  { n:"SMÄD craft beer bar",     a:"Táboritská 10" },
-  { n:"Pivoteka Žižkoff",        a:"Milíčova 6" },
-  { n:"Pub a Bar Na Plech",      a:"Bořivojova 503" },
-  { n:"Tiki Taky Bar",           a:"Seifertova 20" },
-  { n:"Vlkova 26",               a:"Vlkova 26" },
+  { n:"U Sadu",                  a:"Škroupovo nám. 5",          img:"bars/u-sadu.jpg" },
+  { n:"Áčko Žižkov",             a:"Bořivojova 98",             img:"bars/acko-zizkov.jpg" },
+  { n:"Bukowski's Bar",          a:"Bořivojova 86",             img:"bars/bukowskis.jpg" },
+  { n:"Woodoo",                  a:"Bořivojova 69",             img:"bars/woodoo.jpg" },
+  { n:"Bar Bohužel",             a:"Bořivojova 61 · cash only", img:"bars/bohuzel.jpg" },
+  { n:"Theatrino Cocktail Bar",  a:"Bořivojova 53",             img:"bars/theatrino.jpg" },
+  { n:"Maverick's Irish pub",    a:"Žižkov 204",                img:"bars/mavericks.jpg" },
+  { n:"SMÄD craft beer bar",     a:"Táboritská 10",             img:"bars/smad.jpg" },
+  { n:"Pivoteka Žižkoff",        a:"Milíčova 6",                img:"bars/pivoteka.jpg" },
+  { n:"Pub a Bar Na Plech",      a:"Bořivojova 503",            img:"bars/na-plech.jpg" },
+  { n:"Tiki Taky Bar",           a:"Seifertova 20",             img:"bars/tiki-taky.jpg" },
+  { n:"Vlkova 26",               a:"Vlkova 26",                 img:"bars/vlkova-26.jpg" },
 ];
+function mapsUrl(b){
+  const addr = b.a.split("·")[0].trim();
+  return "https://www.google.com/maps/search/?api=1&query=" +
+         encodeURIComponent(b.n + ", " + addr + ", Žižkov, Praha 3");
+}
 
 const POLL_MS = 6000;
 const RPC_TIMEOUT_MS = 12000;
@@ -280,6 +295,21 @@ function forfeitText(f, mult){
   return (n === 5 ? "ALL 5" : n) + " × " + f.drink.text;
 }
 
+/* Forfeit for a specific guess row: a server-stamped rig wins over the hash.
+   The wheel still animates identically — it just lands where it's told. */
+function forfeitOf(teamName, g){
+  if(g.rig_d != null){
+    const d = DRINKS[g.rig_d] || DRINKS[0];
+    let x = 2166136261;
+    const s = teamName + "|" + g.bar;
+    for(let i = 0; i < s.length; i++){ x = Math.imul(x ^ s.charCodeAt(i), 16777619) >>> 0; }
+    const jitter = (Math.floor(x / 131) % 37) - 18;
+    return { count: g.rig_c || 1, drink: d, free: !!d.free,
+             rotation: 5 * 360 - g.rig_d * SEG + jitter };
+  }
+  return forfeitFor(teamName, g.bar);
+}
+
 function wheelHTML(f, spun, mult){
   const r = 140;
   const segs = DRINKS.map((d, i) => {
@@ -335,6 +365,7 @@ function applyLocalGuess(bar, r){
   state.my_guesses = (state.my_guesses || []).concat([{
     bar, correct: r.result === "correct", at: r.server_now,
     mult: r.mult || 1, by: r.by || null, photo: null,
+    rig_d: r.rig_d != null ? r.rig_d : null, rig_c: r.rig_c != null ? r.rig_c : null,
   }]);
   state.last_guess_at = r.server_now;
   if(r.cooldown_seconds != null) state.cooldown_seconds = r.cooldown_seconds;
@@ -512,6 +543,8 @@ function renderGuessList(){
       if(g){
         const isTarget = g.correct;
         return `<div class="usedrow">
+          ${b.img ? `<img class="thumb" src="${b.img}" alt="" loading="lazy"
+             style="opacity:${isTarget ? 1 : .38}" onerror="this.remove()">` : ""}
           <div class="info ${isTarget ? "found" : ""}">
             <div class="name">${esc(b.n)}${isTarget ? " ✓" : ""}</div>
             <div class="addr">${esc(b.a)}${g.photo ? " · 📸 proof in" : ""}</div>
@@ -521,10 +554,18 @@ function renderGuessList(){
         </div>`;
       }
       const seen = rivals.includes(b.n);
-      return `<button class="btn" data-i="${i}">
-        <div class="name">${esc(b.n)}</div>
-        <div class="addr">${esc(b.a)}${seen ? " · another team tried this" : ""}</div>
-      </button>`;
+      return `<div class="barrow">
+        <button class="btn" data-i="${i}">
+          ${b.img ? `<img class="thumb" src="${b.img}" alt="" loading="lazy"
+             onerror="this.remove()">` : ""}
+          <div>
+            <div class="name">${esc(b.n)}</div>
+            <div class="addr">${esc(b.a)}${seen ? " · another team tried this" : ""}</div>
+          </div>
+        </button>
+        <a class="loc" href="${mapsUrl(b)}" target="_blank" rel="noopener"
+           aria-label="open in maps">📍</a>
+      </div>`;
     }).join("")}
     <p class="foot">Tap the bar you are standing in. Honour system.<br>
       🍌 Trap a bar you've visited — rivals who guess it drink a DOUBLED forfeit.</p>
@@ -593,7 +634,7 @@ function renderCooldown(left, last){
   const wheelOn = state.wheel !== false;
   const mult    = last.mult || 1;
   const by      = last.by || [];
-  const f       = wheelOn ? forfeitFor(team, last.bar) : null;
+  const f       = wheelOn ? forfeitOf(team, last) : null;
   const spunKey = "stag_spun_" + team + "_" + last.bar;
   const spun    = isSpun(spunKey);
   const showProof = f && spun && !f.free;
@@ -729,7 +770,7 @@ function renderAdmin(){
         ${gs.length}/${BARS.length} bars · 🍌 ${3 - myBans.length} left · 📸 ${photos}/${wrongs}
         · ${lock > 0 ? `locked ${mmss(lock)}` : "free"}
         ${last ? `<br>last: ${esc(last.bar)}${last.correct ? " ✓"
-                 : g.wheel_enabled ? " — " + forfeitText(forfeitFor(t, last.bar), last.mult) : ""}` : ""}</div>
+                 : g.wheel_enabled ? " — " + forfeitText(forfeitOf(t, last), last.mult) : ""}` : ""}</div>
     </div>`;
   }).join("");
 
@@ -781,6 +822,29 @@ function renderAdmin(){
         data-unlock="${t}">${t}</button>`).join("")}
     </div>
 
+    <label>🎯 Rig a team's next wheel spin</label>
+    <div class="row" style="margin-bottom:10px">
+      <select id="rigteam" style="margin:0">
+        ${TEAMS.map(t => `<option value="${t}">${t}</option>`).join("")}
+      </select>
+      <select id="rigdrink" style="margin:0">
+        ${DRINKS.map((d, i) => `<option value="${i}">${d.text}</option>`).join("")}
+      </select>
+      <select id="rigcount" style="margin:0">
+        ${[1,2,3,4,5].map(n => `<option value="${n}" ${n === 3 ? "selected" : ""}>${n} drink${n > 1 ? "s" : ""}</option>`).join("")}
+      </select>
+    </div>
+    <button class="btn ghost" style="text-align:center;border-color:var(--amber);color:#f0d98a"
+            id="rigset">Rig it — fires on their next wrong guess</button>
+    ${Object.keys(admin.rigs || {}).length ? `<div class="card" style="font-size:13px">
+      ${Object.entries(admin.rigs).map(([t, rg]) => {
+        const d = DRINKS[rg.d] || DRINKS[0];
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0">
+          <span>🎯 ${t} → ${d.free ? "FREE PASS" : rg.c + " × " + d.text}</span>
+          <button class="trap" style="min-width:60px;min-height:36px" data-unrig="${t}">clear</button>
+        </div>`;
+      }).join("")}</div>` : ""}
+
     <label>Change admin passphrase</label>
     <div class="row" style="margin-bottom:10px">
       <input id="newpass" autocomplete="off" placeholder="new passphrase" style="margin:0">
@@ -798,8 +862,8 @@ function renderAdmin(){
         <span class="t">${new Date(x.at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>
         <span class="tm">${x.team}</span>
         <span class="${x.correct ? "ok" : ""}" style="flex:1">${esc(x.bar)}${x.correct ? ` ✓ +${FIND_PTS}`
-          : (x.mult > 1 ? " 🍌×" + x.mult : "") +
-            (g.wheel_enabled ? ` <span style="color:var(--dim)">· ${forfeitText(forfeitFor(x.team, x.bar), x.mult)}</span>` : "")}</span>
+          : (x.mult > 1 ? " 🍌×" + x.mult : "") + (x.rig_d != null ? " 🎯" : "") +
+            (g.wheel_enabled ? ` <span style="color:var(--dim)">· ${forfeitText(forfeitOf(x.team, x), x.mult)}</span>` : "")}</span>
         ${x.photo ? `<a href="${PHOTO_BASE + encodeURIComponent(x.photo)}" target="_blank">
            <img src="${PHOTO_BASE + encodeURIComponent(x.photo)}" alt="proof"></a>` : ""}
       </div>`).join("") || '<div style="color:var(--dim)">No guesses yet.</div>'}
