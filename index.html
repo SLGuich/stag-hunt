@@ -369,6 +369,8 @@ function applyLocalGuess(bar, r){
   }]);
   state.last_guess_at = r.server_now;
   if(r.cooldown_seconds != null) state.cooldown_seconds = r.cooldown_seconds;
+  state.proof_due = (r.result === "wrong" && state.wheel !== false &&
+                     r.rig_d != null && r.rig_d !== 4) ? bar : null;
 }
 
 async function submitGuess(bar){
@@ -381,6 +383,7 @@ async function submitGuess(bar){
     if(r.result === "correct")      buzz([120, 60, 120, 60, 400]);
     else if(r.result === "wrong")   buzz(500);
     else if(r.result === "locked")  notice = "That didn't count — your team was already on cooldown. " + bar + " is still available.";
+    else if(r.result === "need_proof") notice = "That didn't count — upload the proof photo of the round at " + (r.bar || "the last bar") + " first. " + bar + " is still available.";
     else if(r.result === "error")   notice = r.message || "Rejected.";
     await refresh();
     if(offline && (r.result === "wrong" || r.result === "correct")) applyLocalGuess(bar, r);
@@ -455,9 +458,12 @@ function render(){
   else{
     const left = cooldownLeft();
     const last = lastGuess();
-    if(left > 0 && last && last.correct) renderFound(left);
-    else if(left > 0 && last)            renderCooldown(left, last);
-    else                                 renderGuessList();
+    // A wrong guess holds the red screen until BOTH the timer runs out AND
+    // the forfeit's photo proof is in (server-enforced via proof_due).
+    if(last && last.correct && left > 0)  renderFound(left);
+    else if(last && !last.correct && (left > 0 || state.proof_due === last.bar))
+                                          renderCooldown(left, last);
+    else                                  renderGuessList();
   }
   // Sheets are drawn BY render, so a re-render can never orphan them.
   if(pending)       attachGuessSheet();
@@ -638,10 +644,11 @@ function renderCooldown(left, last){
   const spunKey = "stag_spun_" + team + "_" + last.bar;
   const spun    = isSpun(spunKey);
   const showProof = f && spun && !f.free;
+  const proofDue  = state.proof_due === last.bar && !last.photo;
   const ordText = !f  ? "Buy a round before you move on."
                 : !spun ? "Spin for the forfeit round."
                 : f.free ? "You got away with it. Move on when the timer ends."
-                : "Buy the round before you move on.";
+                : "Buy the round and snap the proof.";
   h(`
     <div class="full wrong">
       <div class="inner">
@@ -661,8 +668,15 @@ function renderCooldown(left, last){
               : `<button class="proofbtn" id="proofbtn">📸 UPLOAD PROOF OF THE ROUND</button>
                  <input type="file" accept="image/*" capture="environment" id="prooffile" hidden>`
         ) : ""}
-        <p class="timer" id="cdtimer">${mmss(left)}</p>
-        <p class="timerlabel">until you can guess again</p>
+        ${left > 0
+          ? `<p class="timer" id="cdtimer">${mmss(left)}</p>
+             <p class="timerlabel">${proofDue
+                ? "then upload the proof to move on"
+                : "until you can guess again"}</p>`
+          : `<p class="timer" style="font-size:clamp(30px,9vw,44px)">📸 PROOF NEEDED</p>
+             <p class="timerlabel">${spun
+                ? "upload the photo to unlock the next pub"
+                : "spin, drink, then upload the photo to unlock the next pub"}</p>`}
         <p class="whichbar">Wrong: ${esc(last.bar)}</p>
       </div>
     </div>`);
@@ -762,13 +776,15 @@ function renderAdmin(){
     const myBans = bans.filter(b => b.team === t);
     const photos = gs.filter(x => x.photo).length;
     const wrongs = gs.filter(x => !x.correct).length;
+    const owesProof = !!(last && !last.correct && !last.photo && g.wheel_enabled
+                         && last.rig_d != null && last.rig_d !== 4);
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;font-weight:700">
         <span style="color:${TEAM_COLOR[t]}">${t}${fd[t] ? ' <span style="color:var(--green)">✓ FOUND HIM</span>' : ""}</span>
         <span>${sc[t] || 0} pts</span></div>
       <div style="color:var(--dim);font-size:13px;margin-top:3px">
         ${gs.length}/${BARS.length} bars · 🍌 ${3 - myBans.length} left · 📸 ${photos}/${wrongs}
-        · ${lock > 0 ? `locked ${mmss(lock)}` : "free"}
+        · ${lock > 0 ? `locked ${mmss(lock)}` : owesProof ? "⏳ owes proof" : "free"}
         ${last ? `<br>last: ${esc(last.bar)}${last.correct ? " ✓"
                  : g.wheel_enabled ? " — " + forfeitText(forfeitOf(t, last), last.mult) : ""}` : ""}</div>
     </div>`;
@@ -816,7 +832,7 @@ function renderAdmin(){
       Currently ${g.show_rivals ? "SHOWN — tap to hide" : "hidden — tap to show"}
     </button>
 
-    <label>Unlock a team's cooldown now</label>
+    <label>Unlock a team now (clears cooldown &amp; proof gate)</label>
     <div class="row" style="margin-bottom:10px">
       ${TEAMS.map(t => `<button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
         data-unlock="${t}">${t}</button>`).join("")}
