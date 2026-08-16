@@ -16,3 +16,9 @@ pushed; missing photos degrade gracefully (no broken images).
 - na-plech.jpg
 - tiki-taky.jpg
 - vlkova-26.jpg
+- oko.jpg
+- slovanska-lipa.jpg
+- pavlac.jpg
+- nad-viktorkou.jpg
+- sedm-vlku.jpg
+- u-vodoucha.jpg
