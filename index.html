@@ -278,6 +278,8 @@ const DRINKS = [
 ];
 const SEG = 360 / DRINKS.length;
 const COUNTS = [1,2,2,3,3,3,4,4,5,5];
+let resultHoldUntil = 0;   // keeps a settled result on screen briefly even
+                           // when the cooldown has already expired
 
 function forfeitFor(team, bar){
   let x = 2166136261;                    // FNV-1a
@@ -352,6 +354,7 @@ function spinWheel(f, key, mult){
     clearInterval(roll);
     markSpun(key);
     spinning = false;
+    resultHoldUntil = Date.now() + 4000;   // let them read it before any screen change
     buzz([80, 40, 80, 40, 200]);
     render();                              // full redraw shows result + proof button
   }, 3350);
@@ -361,13 +364,18 @@ function spinWheel(f, key, mult){
 function applyLocalGuess(bar, r){
   // The guess landed but the follow-up state read didn't: synthesize just
   // enough state locally so the screen moves. Next good poll replaces it.
+  // Replays keep their ORIGINAL timestamp so a retry can't restart the
+  // cooldown on screen, and never append a duplicate row.
   if(!state) return;
-  state.my_guesses = (state.my_guesses || []).concat([{
-    bar, correct: r.result === "correct", at: r.server_now,
-    mult: r.mult || 1, by: r.by || null, photo: null,
-    rig_d: r.rig_d != null ? r.rig_d : null, rig_c: r.rig_c != null ? r.rig_c : null,
-  }]);
-  state.last_guess_at = r.server_now;
+  const at = (r.replay && r.at) ? r.at : r.server_now;
+  if(!(state.my_guesses || []).some(g => g.bar === bar)){
+    state.my_guesses = (state.my_guesses || []).concat([{
+      bar, correct: r.result === "correct", at,
+      mult: r.mult || 1, by: r.by || null, photo: null,
+      rig_d: r.rig_d != null ? r.rig_d : null, rig_c: r.rig_c != null ? r.rig_c : null,
+    }]);
+  }
+  state.last_guess_at = at;
   if(r.cooldown_seconds != null) state.cooldown_seconds = r.cooldown_seconds;
   state.proof_due = (r.result === "wrong" && state.wheel !== false &&
                      r.rig_d != null && r.rig_d !== 4) ? bar : null;
@@ -461,7 +469,8 @@ function render(){
     // A wrong guess holds the red screen until BOTH the timer runs out AND
     // the forfeit's photo proof is in (server-enforced via proof_due).
     if(last && last.correct && left > 0)  renderFound(left);
-    else if(last && !last.correct && (left > 0 || state.proof_due === last.bar))
+    else if(last && !last.correct &&
+            (left > 0 || state.proof_due === last.bar || Date.now() < resultHoldUntil))
                                           renderCooldown(left, last);
     else                                  renderGuessList();
   }
@@ -641,7 +650,9 @@ function renderCooldown(left, last){
   const mult    = last.mult || 1;
   const by      = last.by || [];
   const f       = wheelOn ? forfeitOf(team, last) : null;
-  const spunKey = "stag_spun_" + team + "_" + last.bar;
+  // Keyed by the guess timestamp too, so an admin reset + re-guess of the
+  // same bar gets a fresh spin instead of a stale settled wheel.
+  const spunKey = "stag_spun_" + team + "_" + last.bar + "_" + (last.at || "");
   const spun    = isSpun(spunKey);
   const showProof = f && spun && !f.free;
   const proofDue  = state.proof_due === last.bar && !last.photo;
@@ -758,6 +769,12 @@ function renderAdmin(){
   const g = admin.game, sc = admin.scores || {}, fd = admin.found || {};
   const feed  = admin.guesses || [];
   const bans  = admin.bananas || [];
+  // Preserve half-composed controls across the background re-render.
+  const keep = {};
+  ["rigteam", "rigdrink", "rigcount", "newpass"].forEach(id => {
+    const n = document.getElementById(id);
+    if(n) keep[id] = n.value;
+  });
   const early = { "Pivoteka Žižkoff":"closes 22:00", "SMÄD craft beer bar":"closes 00:00" };
 
   const lockLeft = t => {
@@ -776,8 +793,10 @@ function renderAdmin(){
     const myBans = bans.filter(b => b.team === t);
     const photos = gs.filter(x => x.photo).length;
     const wrongs = gs.filter(x => !x.correct).length;
+    const w = admin.unlocks && admin.unlocks[t] ? new Date(admin.unlocks[t]).getTime() : 0;
     const owesProof = !!(last && !last.correct && !last.photo && g.wheel_enabled
-                         && last.rig_d != null && last.rig_d !== 4);
+                         && last.rig_d != null && last.rig_d !== 4
+                         && !(w > new Date(last.at).getTime()));
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;font-weight:700">
         <span style="color:${TEAM_COLOR[t]}">${t}${fd[t] ? ' <span style="color:var(--green)">✓ FOUND HIM</span>' : ""}</span>
@@ -878,7 +897,7 @@ function renderAdmin(){
         <span class="t">${new Date(x.at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>
         <span class="tm">${x.team}</span>
         <span class="${x.correct ? "ok" : ""}" style="flex:1">${esc(x.bar)}${x.correct ? ` ✓ +${FIND_PTS}`
-          : (x.mult > 1 ? " 🍌×" + x.mult : "") + (x.rig_d != null ? " 🎯" : "") +
+          : (x.mult > 1 ? " 🍌×" + x.mult : "") + (x.rigged ? " 🎯" : "") +
             (g.wheel_enabled ? ` <span style="color:var(--dim)">· ${forfeitText(forfeitOf(x.team, x), x.mult)}</span>` : "")}</span>
         ${x.photo ? `<a href="${PHOTO_BASE + encodeURIComponent(x.photo)}" target="_blank">
            <img src="${PHOTO_BASE + encodeURIComponent(x.photo)}" alt="proof"></a>` : ""}
@@ -886,6 +905,11 @@ function renderAdmin(){
     </div>
     <p class="foot"><a href="#" style="color:var(--dim)">← back to game</a></p>
   `);
+
+  Object.entries(keep).forEach(([id, v]) => {
+    const n = document.getElementById(id);
+    if(n && v) n.value = v;
+  });
 
   document.getElementById("target").onchange = e => adminCall("set_target", e.target.value);
   document.getElementById("cd").onchange = e => {
@@ -903,6 +927,14 @@ function renderAdmin(){
   document.getElementById("rivals").onclick = () => adminCall("set_rivals", g.show_rivals ? "false" : "true");
   el.querySelectorAll("[data-unlock]").forEach(b =>
     b.onclick = () => adminCall("unlock", b.dataset.unlock));
+  document.getElementById("rigset").onclick = () => {
+    const t = document.getElementById("rigteam").value;
+    const d = document.getElementById("rigdrink").value;
+    const c = document.getElementById("rigcount").value;
+    adminCall("set_rig", t + "|" + d + "|" + c);
+  };
+  el.querySelectorAll("[data-unrig]").forEach(b =>
+    b.onclick = () => adminCall("clear_rig", b.dataset.unrig));
   document.getElementById("savepass").onclick = async () => {
     const v = document.getElementById("newpass").value.trim();
     if(!v) return;
@@ -947,6 +979,8 @@ setInterval(() => {
     else if(state.status === "running" && !sending) render();  // e.g. woke from lock
   }else if(lastLeft > 0){
     render();                                                  // cooldown just expired
+  }else if(resultHoldUntil && Date.now() >= resultHoldUntil){
+    resultHoldUntil = 0; render();                             // read-the-result hold over
   }
   lastLeft = l;
 }, 500);
