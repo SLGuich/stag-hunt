@@ -10,6 +10,7 @@
     --bg:#0a0a0c; --panel:#141419; --line:#26262e;
     --ink:#f4f4f6; --dim:#8c8c99;
     --red:#e01b24; --green:#1a9e3c; --amber:#c9a227;
+    --alpha:#e8b73a; --bravo:#4da3ff; --charlie:#ff7ad9;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink)}
@@ -32,8 +33,7 @@
   .btn:active{transform:scale(.985)}
   .btn .name{font-size:19px;font-weight:600;letter-spacing:-.01em}
   .btn .addr{font-size:13px;color:var(--dim);margin-top:2px}
-  .btn[disabled]{opacity:.32;pointer-events:none}
-  .btn[disabled] .name{text-decoration:line-through}
+  .btn[disabled]{opacity:.55;pointer-events:none}
   .btn.big{min-height:78px;text-align:center;font-size:26px;font-weight:700;letter-spacing:.06em}
 
   .primary{background:var(--green);border-color:var(--green);font-weight:700}
@@ -43,7 +43,7 @@
   .row>*{flex:1}
 
   .counts{
-    display:flex;gap:8px;margin-bottom:16px;font-size:13px;
+    display:flex;gap:8px;margin-bottom:12px;font-size:13px;
     background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;
   }
   .counts div{flex:1;text-align:center}
@@ -52,24 +52,51 @@
 
   .hint{
     background:rgba(201,162,39,.12);border:1px solid var(--amber);color:#f0d98a;
-    border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:15px;
+    border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:15px;
   }
+  .alert{border-color:var(--red)!important;background:rgba(224,27,36,.12)!important;color:#ffb3b8!important}
+  .good{border-color:var(--green)!important;background:rgba(26,158,60,.12)!important;color:#8ee79f!important}
+
+  /* visited bars: struck-through info + live banana-trap / photo badges */
+  .usedrow{display:flex;align-items:center;gap:10px;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;padding:10px 16px;margin-bottom:10px;
+    min-height:66px}
+  .usedrow .info{flex:1;opacity:.38}
+  .usedrow .info.found{opacity:1}
+  .usedrow .info .name{font-size:19px;font-weight:600;text-decoration:line-through}
+  .usedrow .info.found .name{text-decoration:none;color:#8ee79f}
+  .usedrow .info .addr{font-size:13px;color:var(--dim);margin-top:2px}
+  .usedrow .trap{min-width:74px;min-height:46px;border:1px solid var(--amber);border-radius:10px;
+    font-size:15px;font-weight:600;color:#f0d98a;background:rgba(201,162,39,.10)}
+  .usedrow .placed{font-size:24px}
+
+  .map{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:8px 8px 2px;margin-bottom:12px}
+  .map .cap{font-size:11px;color:var(--dim);text-align:center;padding:2px 0 6px}
 
   /* full-screen result states */
   .full{
     position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;text-align:center;padding:24px;
-    padding-bottom:calc(24px + env(safe-area-inset-bottom));
+    align-items:center;justify-content:flex-start;text-align:center;padding:24px;
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));overflow-y:auto;
   }
-  .full{overflow-y:auto}
   .full.wrong{background:var(--red)}
   .full.win{background:var(--green)}
   .full.over{background:var(--panel)}
-  .huge{font-size:clamp(52px,17vw,84px);line-height:.92;font-weight:800;letter-spacing:-.03em;margin:0}
-  .order{font-size:clamp(26px,8vw,38px);font-weight:800;line-height:1.08;margin:18px 0 0;text-wrap:balance}
-  .whichbar{font-size:15px;opacity:.85;margin:14px 0 0}
-  .timer{font-size:clamp(56px,20vw,96px);font-weight:800;font-variant-numeric:tabular-nums;margin:26px 0 4px;letter-spacing:-.03em}
-  .timerlabel{font-size:14px;opacity:.8;text-transform:uppercase;letter-spacing:.12em}
+  .full .inner{margin:auto;display:flex;flex-direction:column;align-items:center;padding:10px 0;width:100%}
+  .huge{font-size:clamp(36px,11vw,56px);line-height:.95;font-weight:800;letter-spacing:-.03em;margin:0}
+  .order{font-size:clamp(19px,5.5vw,26px);font-weight:800;line-height:1.12;margin:14px 0 0;text-wrap:balance}
+  .whichbar{font-size:15px;opacity:.85;margin:12px 0 0}
+  .timer{font-size:clamp(38px,11vw,60px);font-weight:800;font-variant-numeric:tabular-nums;
+    margin:14px 0 2px;letter-spacing:-.03em}
+  .timerlabel{font-size:13px;opacity:.8;text-transform:uppercase;letter-spacing:.12em}
+  .banbanner{background:#fff;color:var(--red);font-weight:800;border-radius:12px;
+    padding:10px 16px;margin-top:10px;font-size:17px}
+  .proofbtn{background:#fff;color:var(--red);text-align:center;font-weight:800;min-height:54px;
+    width:250px;margin:14px auto 0;border-radius:12px;font-size:16px}
+  .proofok{background:rgba(0,0,0,.25);border-radius:12px;padding:8px 14px;margin-top:14px;
+    font-weight:700;display:flex;align-items:center;gap:10px}
+  .proofok img{height:56px;border-radius:8px;display:block}
 
   .banner{
     position:fixed;left:0;right:0;top:0;z-index:60;background:var(--amber);color:#241d00;
@@ -91,10 +118,13 @@
     color:var(--dim);margin:16px 0 6px}
 
   .feed{font-size:14px}
-  .feed div{display:flex;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .feed div{display:flex;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center}
   .feed .t{width:52px;color:var(--dim);font-variant-numeric:tabular-nums;flex:none}
-  .feed .tm{width:62px;font-weight:700;flex:none}
+  .feed .tm{width:66px;font-weight:700;flex:none}
   .feed .ok{color:var(--green);font-weight:700}
+  .feed img{height:34px;border-radius:6px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:10px 12px;margin-bottom:8px}
   .warn{color:var(--amber);font-size:13px;margin:6px 0 0}
   .spacer{flex:1}
   .foot{color:var(--dim);font-size:12px;text-align:center;padding-top:18px}
@@ -107,81 +137,103 @@
 /* ============================================================ config === */
 const SUPABASE_URL = "https://yfzbgvqthrgqardavayq.supabase.co";
 const SUPABASE_KEY = "sb_publishable_vqCpRtzUzIAruuDcrNyIFw_hZHwZxG6";
+const PHOTO_BASE   = SUPABASE_URL + "/storage/v1/object/public/stag-photos/";
 
 const TEAMS = ["ALPHA", "BRAVO", "CHARLIE"];
+const TEAM_COLOR = { ALPHA: "var(--alpha)", BRAVO: "var(--bravo)", CHARLIE: "var(--charlie)" };
+const FIND_PTS = 5;
 
-/* Order matters — presented exactly as briefed. Names here must match the
-   target_bar stored in the database, character for character. */
+/* Presented in brief order. x/y are schematic Žižkov positions (not GPS). */
 const BARS = [
-  { n:"U Sadu",                  a:"Škroupovo nám. 5" },
-  { n:"Áčko Žižkov",             a:"Bořivojova 98" },
-  { n:"Bukowski's Bar",          a:"Bořivojova 86" },
-  { n:"Woodoo",                  a:"Bořivojova 69" },
-  { n:"Bar Bohužel",             a:"Bořivojova 61 · cash only" },
-  { n:"Theatrino Cocktail Bar",  a:"Bořivojova 53" },
-  { n:"Maverick's Irish pub",    a:"Žižkov 204" },
-  { n:"SMÄD craft beer bar",     a:"Táboritská 10" },
-  { n:"Pivoteka Žižkoff",        a:"Milíčova 6" },
-  { n:"Pub a Bar Na Plech",      a:"Bořivojova 503" },
-  { n:"Tiki Taky Bar",           a:"Seifertova 20" },
-  { n:"Vlkova 26",               a:"Vlkova 26" },
+  { n:"U Sadu",                  a:"Škroupovo nám. 5",           x:48, y:74 },
+  { n:"Áčko Žižkov",             a:"Bořivojova 98",              x:30, y:55 },
+  { n:"Bukowski's Bar",          a:"Bořivojova 86",              x:40, y:57 },
+  { n:"Woodoo",                  a:"Bořivojova 69",              x:52, y:59 },
+  { n:"Bar Bohužel",             a:"Bořivojova 61 · cash only",  x:60, y:60 },
+  { n:"Theatrino Cocktail Bar",  a:"Bořivojova 53",              x:68, y:61 },
+  { n:"Maverick's Irish pub",    a:"Žižkov 204",                 x:58, y:72 },
+  { n:"SMÄD craft beer bar",     a:"Táboritská 10",              x:82, y:80 },
+  { n:"Pivoteka Žižkoff",        a:"Milíčova 6",                 x:12, y:14 },
+  { n:"Pub a Bar Na Plech",      a:"Bořivojova 503",             x:22, y:57 },
+  { n:"Tiki Taky Bar",           a:"Seifertova 20",              x:18, y:30 },
+  { n:"Vlkova 26",               a:"Vlkova 26",                  x:34, y:38 },
 ];
+const BAR_BY_NAME = Object.fromEntries(BARS.map(b => [b.n, b]));
 
 const POLL_MS = 6000;
+const RPC_TIMEOUT_MS = 12000;
+const ARM_MS = 400;               // sheet buttons arm after this — stops tap-through
 
 /* ============================================================= state === */
-let team        = null;   // "ALPHA" | ...
-let state       = null;   // last good payload from stag_state
-let clockSkew   = 0;      // serverNow - deviceNow, ms. Phones at 2am lie.
-let pending     = null;   // bar awaiting confirmation
+let team        = null;
+let state       = null;
+let clockSkew   = 0;              // serverNow - deviceNow, ms
+let pending     = null;           // bar object awaiting guess confirmation
+let bananaPending = null;         // bar name awaiting banana confirmation
+let sheetArmedAt = 0;             // when the current sheet was opened
 let sending     = false;
-let failedGuess = null;   // bar whose submit blew up — offer a retry
+let uploading   = false;
+let spinning    = false;
+let failedGuess = null;
+let notice      = null;           // one-off message (e.g. "didn't count")
 let offline     = false;
-let admin       = null;   // admin payload once authenticated
+let admin       = null;
 let adminPass   = "";
+let lastSig     = "";
+let refreshId   = 0;              // ignore out-of-order poll responses
+const spunMem   = new Set();      // in-memory mirror of the spun flags
 
 const el = document.getElementById("app");
 const serverNow = () => Date.now() + clockSkew;
 
-/* device-local team memory; plain try/catch because private mode can throw */
 function remember(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
 function recall(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function isSpun(k){ return spunMem.has(k) || recall(k) === "1"; }
+function markSpun(k){ spunMem.add(k); remember(k, "1"); }
+
+const lastGuess = () => (state && state.my_guesses || []).slice(-1)[0] || null;
+const iFound    = () => (state && state.my_guesses || []).some(g => g.correct);
 
 /* =========================================================== network === */
 async function rpc(fn, body){
-  const res = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
-    method:"POST",
-    headers:{
-      "apikey": SUPABASE_KEY,
-      "Authorization": "Bearer " + SUPABASE_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body || {}),
-  });
-  if(!res.ok) throw new Error("HTTP " + res.status + " " + (await res.text()));
-  const data = await res.json();
-  if(data && data.server_now) clockSkew = new Date(data.server_now).getTime() - Date.now();
-  return data;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), RPC_TIMEOUT_MS);
+  try{
+    const res = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body || {}),
+      signal: ctl.signal,
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    return await res.json();
+  }finally{
+    clearTimeout(t);
+  }
 }
 
-let lastSig = "";
 async function refresh(){
   if(location.hash === "#admin") return adminRefresh();
+  if(!team) return;
+  const id = ++refreshId;                     // stale responses are discarded
   try{
-    state = await rpc("stag_state", { p_team: team });
-    offline = false;
+    const data = await rpc("stag_state", { p_team: team });
+    if(id !== refreshId) return;
+    state = data; offline = false;
+    if(data.server_now) clockSkew = new Date(data.server_now).getTime() - Date.now();
   }catch(e){
+    if(id !== refreshId) return;
     offline = true;
   }
-  // A poll only repaints when something actually changed, and never while the
-  // confirm sheet is up — rebuilding the DOM under a thumb mid-tap loses taps.
-  if(pending || sending || spinning) return;
+  if(spinning || uploading) return;           // never interrupt those
   const sig = JSON.stringify([state ? { ...state, server_now: 0 } : null, offline, team]);
   if(sig !== lastSig){ lastSig = sig; render(); }
 }
 
-/* Background poll for the admin screen: keeps the live feed fresh without
-   wiping the form while the organiser is typing in it. */
 async function adminRefresh(){
   if(!admin) return;
   const ae = document.activeElement;
@@ -189,12 +241,10 @@ async function adminRefresh(){
   try{
     const r = await rpc("stag_admin", { p_pass: adminPass, p_action: "read" });
     if(r.ok){ admin = r; renderAdmin(); }
-  }catch(e){ /* keep showing the last good feed */ }
+  }catch(e){ /* keep last good feed */ }
 }
 
 /* ========================================================== cooldown === */
-/* Derived from the server's timestamp, never from a running counter, so it
-   survives a refresh, a locked phone, and a browser tab being evicted. */
 function cooldownLeft(){
   if(!state || !state.last_guess_at) return 0;
   const ends = new Date(state.last_guess_at).getTime() + state.cooldown_seconds * 1000;
@@ -207,9 +257,8 @@ function mmss(ms){
 function buzz(pattern){ try{ navigator.vibrate && navigator.vibrate(pattern); }catch(e){} }
 
 /* =========================================================== forfeit ==== */
-/* The wheel decides how many of the team drink and what. The outcome is a
-   pure hash of team+bar, so every phone on the team lands on the same result
-   no matter who spins, and a refresh can't reroll it. */
+/* Outcome is a pure hash of team+bar: every phone lands on the same result,
+   and a refresh can't reroll it. Banana multiplier comes from the server. */
 const DRINKS = [
   { label: ["PINTS"],              text: "PINTS OF LAGER" },
   { label: ["SHOTS"],              text: "SHOTS" },
@@ -218,8 +267,7 @@ const DRINKS = [
   { label: ["FREE", "PASS"],       text: "FREE PASS", free: true },
 ];
 const SEG = 360 / DRINKS.length;
-const COUNTS = [1,2,2,3,3,3,4,4,5,5];   // weighted towards the middle
-let spinning = false;
+const COUNTS = [1,2,2,3,3,3,4,4,5,5];
 
 function forfeitFor(team, bar){
   let x = 2166136261;                    // FNV-1a
@@ -227,16 +275,17 @@ function forfeitFor(team, bar){
   for(let i = 0; i < s.length; i++){ x = Math.imul(x ^ s.charCodeAt(i), 16777619) >>> 0; }
   const d      = x % DRINKS.length;
   const count  = COUNTS[Math.floor(x / 13) % COUNTS.length];
-  const jitter = (Math.floor(x / 131) % 37) - 18;   // ±18°, stays inside the segment
+  const jitter = (Math.floor(x / 131) % 37) - 18;
   return { count, drink: DRINKS[d], free: !!DRINKS[d].free,
            rotation: 5 * 360 - d * SEG + jitter };
 }
-function forfeitText(f){
+function forfeitText(f, mult){
   if(f.free) return "FREE PASS — NOBODY DRINKS";
-  return (f.count === 5 ? "ALL 5" : f.count) + " × " + f.drink.text;
+  const n = f.count * (mult || 1);
+  return (n === 5 ? "ALL 5" : n) + " × " + f.drink.text;
 }
 
-function wheelHTML(f, spun){
+function wheelHTML(f, spun, mult){
   const r = 140;
   const segs = DRINKS.map((d, i) => {
     const a0 = (i * SEG - SEG/2 - 90) * Math.PI / 180, a1 = (i * SEG + SEG/2 - 90) * Math.PI / 180;
@@ -258,13 +307,13 @@ function wheelHTML(f, spun){
       </g>
       <circle r="36" fill="rgba(0,0,0,.45)"/>
       <text id="fcount" y="13" text-anchor="middle" font-size="38" font-weight="800"
-            fill="#fff">${spun ? (f.free ? "0" : f.count) : "?"}</text>
+            fill="#fff">${spun ? (f.free ? "0" : f.count * (mult || 1)) : "?"}</text>
     </svg>
     ${spun ? "" : `<button class="btn" id="spinbtn" style="background:#fff;color:var(--red);
        text-align:center;font-weight:800;min-height:56px;width:230px;margin:12px auto 0">SPIN</button>`}`;
 }
 
-function spinWheel(f, key){
+function spinWheel(f, key, mult){
   if(spinning) return;
   spinning = true;
   const gEl = document.getElementById("wheelg");
@@ -276,35 +325,141 @@ function spinWheel(f, key){
   requestAnimationFrame(() => { gEl.style.transform = `rotate(${f.rotation}deg)`; });
   setTimeout(() => {
     clearInterval(roll);
-    if(cnt) cnt.textContent = f.free ? "0" : f.count;
-    const res = document.getElementById("fresult");
-    if(res) res.textContent = forfeitText(f);
-    const ord = document.getElementById("ford");
-    if(ord) ord.textContent = f.free
-      ? "You got away with it. Move on when the timer ends."
-      : "Buy the round before you move on.";
-    buzz([80, 40, 80, 40, 200]);
-    remember(key, "1");
+    markSpun(key);
     spinning = false;
+    buzz([80, 40, 80, 40, 200]);
+    render();                              // full redraw shows result + proof button
   }, 3350);
 }
 
+/* ============================================================== map ==== */
+/* Schematic Žižkov. routes: [{team, bars:[names in guess order], color}] */
+function mapHTML(routes, opts){
+  const o = opts || {};
+  const pts = name => { const b = BAR_BY_NAME[name]; return b ? [b.x, b.y] : null; };
+  const lines = routes.map(rt => {
+    const ps = rt.bars.map(pts).filter(Boolean);
+    if(ps.length < 2) return "";
+    return `<polyline points="${ps.map(p => p.join(",")).join(" ")}"
+              fill="none" stroke="${rt.color}" stroke-width="1.6" stroke-opacity=".75"
+              stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="3 1.6"/>`;
+  }).join("");
+  const orderBadges = routes.map(rt =>
+    rt.bars.map((name, i) => {
+      const p = pts(name); if(!p) return "";
+      return `<circle cx="${p[0]}" cy="${p[1]}" r="4.6" fill="${rt.color}"/>
+              <text x="${p[0]}" y="${p[1]+1.9}" text-anchor="middle"
+                font-size="5.4" font-weight="800" fill="#0a0a0c">${i+1}</text>`;
+    }).join("")).join("");
+  const visited = new Set(routes.flatMap(rt => rt.bars));
+  const dots = BARS.map(b => {
+    const seen = visited.has(b.n);
+    const ban  = o.bananas && o.bananas.includes(b.n);
+    const lbl  = b.n.length > 14 ? b.n.slice(0, 13) + "…" : b.n;
+    return `${seen ? "" : `<circle cx="${b.x}" cy="${b.y}" r="2.6"
+              fill="none" stroke="var(--dim)" stroke-width="1"/>`}
+            <text x="${b.x}" y="${b.y - (seen ? 6.6 : 5)}" text-anchor="middle"
+              font-size="4.4" fill="${seen ? "var(--ink)" : "var(--dim)"}">${esc(lbl)}</text>
+            ${ban ? `<text x="${b.x + 5}" y="${b.y + 3}" font-size="6">🍌</text>` : ""}`;
+  }).join("");
+  const legend = o.legend ? `<g font-size="5" font-weight="700">
+      ${routes.map((rt, i) => `<circle cx="${6 + i*30}" cy="89" r="2.6" fill="${rt.color}"/>
+        <text x="${10 + i*30}" y="90.8" fill="var(--dim)">${rt.team}</text>`).join("")}
+    </g>` : "";
+  return `<div class="map">
+    <svg viewBox="0 0 100 94" style="width:100%;display:block">
+      <text x="24" y="24" font-size="4" fill="var(--line)" transform="rotate(24 24 24)">Seifertova</text>
+      <text x="34" y="52" font-size="4" fill="var(--line)" transform="rotate(4 34 52)">Bořivojova</text>
+      ${lines}${dots}${orderBadges}${legend}
+    </svg>
+    <div class="cap">schematic — not GPS. Numbers = guess order.</div>
+  </div>`;
+}
+
 /* ============================================================ actions === */
+function applyLocalGuess(bar, r){
+  // The guess landed but the follow-up state read didn't: synthesize just
+  // enough state locally so the screen moves. Next good poll replaces it.
+  if(!state) return;
+  state.my_guesses = (state.my_guesses || []).concat([{
+    bar, correct: r.result === "correct", at: r.server_now,
+    mult: r.mult || 1, by: r.by || null, photo: null,
+  }]);
+  state.last_guess_at = r.server_now;
+  if(r.cooldown_seconds != null) state.cooldown_seconds = r.cooldown_seconds;
+}
+
 async function submitGuess(bar){
   if(sending) return;
-  sending = true; pending = null; failedGuess = null; render();
+  sending = true; failedGuess = null; notice = null; render();   // sheet shows "Sending…"
   try{
     const r = await rpc("stag_guess", { p_team: team, p_bar: bar });
-    if(r.result === "correct")   buzz([120,60,120,60,400]);
-    else if(r.result === "wrong") buzz(500);
+    pending = null;
+    if(r.server_now) clockSkew = new Date(r.server_now).getTime() - Date.now();
+    if(r.result === "correct")      buzz([120, 60, 120, 60, 400]);
+    else if(r.result === "wrong")   buzz(500);
+    else if(r.result === "locked")  notice = "That didn't count — your team was already on cooldown. " + bar + " is still available.";
+    else if(r.result === "error")   notice = r.message || "Rejected.";
     await refresh();
+    if(offline && (r.result === "wrong" || r.result === "correct")) applyLocalGuess(bar, r);
   }catch(e){
-    // Never silently lose a guess: surface it, and let them retry. The retry
-    // is safe because the server treats a repeat of the same bar as a replay.
-    failedGuess = bar;
+    failedGuess = bar;                      // timeout or dead network: offer retry
   }finally{
-    sending = false; render();
+    pending = null; sending = false; render();
   }
+}
+
+async function dropBanana(bar){
+  bananaPending = null; render();
+  try{
+    const r = await rpc("stag_banana", { p_team: team, p_bar: bar });
+    if(r.result === "error") notice = r.message;
+    await refresh(); render();
+  }catch(e){
+    notice = "Banana didn't send — try again."; render();
+  }
+}
+
+async function uploadProof(bar, file){
+  if(uploading || !file) return;
+  uploading = true; render();
+  try{
+    const blob = await compressImage(file);
+    const path = team + "-" + Date.now() + ".jpg";
+    const res = await fetch(SUPABASE_URL + "/storage/v1/object/stag-photos/" + path, {
+      method: "POST",
+      headers: { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY,
+                 "Content-Type": "image/jpeg" },
+      body: blob,
+    });
+    if(!res.ok) throw new Error("upload " + res.status);
+    const r = await rpc("stag_photo", { p_team: team, p_bar: bar, p_path: path });
+    if(r.result !== "ok") throw new Error(r.message || "rejected");
+    uploading = false;
+    await refresh(); render();
+  }catch(e){
+    uploading = false;
+    notice = "Photo didn't upload — try again when you have signal.";
+    render();
+  }
+}
+
+function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1000 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve(b) : reject(new Error("encode failed")), "image/jpeg", 0.65);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("read failed")); };
+    img.src = url;
+  });
 }
 
 /* ============================================================== views === */
@@ -312,27 +467,27 @@ function h(html){ el.innerHTML = html; }
 
 function render(){
   if(location.hash === "#admin") return renderAdmin();
-  if(!team)   return renderJoin();
-  if(!state)  return renderConnecting();
-
-  const won      = state.status === "won";
-  const revealed = state.status === "revealed";
-  if(won && state.winning_team === team) return renderWin();
-  if(won || revealed)                    return renderOver();
-
-  const left = cooldownLeft();
-  if(left > 0) return renderCooldown(left);
-  return renderGuessList();
+  if(!team) return renderJoin();
+  if(!state){ renderConnecting(); }
+  else if(state.status !== "running"){ renderOver(); }
+  else{
+    const left = cooldownLeft();
+    const last = lastGuess();
+    if(left > 0 && last && last.correct) renderFound(left);
+    else if(left > 0 && last)            renderCooldown(left, last);
+    else                                 renderGuessList();
+  }
+  // Sheets are drawn BY render, so a re-render can never orphan them.
+  if(pending)       attachGuessSheet();
+  if(bananaPending) attachBananaSheet();
 }
 
-/* First load hasn't landed yet. On a dead signal this is where people get
-   stranded, so say what's happening and give them something to press. */
 function renderConnecting(){
   h(`
     <h1>Find the Groom</h1>
     <p class="sub">Team ${team}</p>
     ${offline
-      ? `<div class="hint" style="border-color:var(--red);background:rgba(224,27,36,.12);color:#ffb3b8">
+      ? `<div class="hint alert">
            <b>Can't reach the server.</b> Walk towards the door or the street —
            cellar bars kill the signal. Retrying automatically.
          </div>
@@ -354,7 +509,8 @@ function renderJoin(){
     <p class="sub">Žižkov · Friday night. Pick your team.</p>
     ${TEAMS.map(t => `<button class="btn big" data-team="${t}">${t}</button>`).join("")}
     <div class="spacer"></div>
-    <p class="foot">One bar has a table reserved. Find it first.</p>
+    <p class="foot">One bar has a table reserved. Finding it = ${FIND_PTS} pts.
+      Every other bar you drink at = 1 pt (2 if banana'd). Most points wins.</p>
   `);
   el.querySelectorAll("[data-team]").forEach(b => b.onclick = () => {
     team = b.dataset.team; remember("stag_team", team);
@@ -362,21 +518,30 @@ function renderJoin(){
   });
 }
 
-function countsBar(){
-  const c = (state && state.counts) || {};
+function scoreStrip(){
+  const sc = (state && state.scores) || {};
+  const fd = (state && state.found)  || {};
   return `<div class="counts">${TEAMS.map(t =>
-    `<div class="${t === team ? "me" : ""}">${t}<b>${c[t] || 0}</b></div>`).join("")}</div>`;
+    `<div class="${t === team ? "me" : ""}">${t}${fd[t] ? " ✓" : ""}<b>${sc[t] || 0}</b></div>`
+  ).join("")}</div>`;
 }
 
 function renderGuessList(){
-  const mine    = (state.my_guesses || []).map(g => g.bar);
+  const gs      = state.my_guesses || [];
+  const mine    = gs.map(g => g.bar);
   const rivals  = state.rival_bars || [];
+  const myBan   = state.my_bananas || [];
+  const banLeft = state.bananas_left != null ? state.bananas_left : 3;
+  const found   = iFound();
   const banner  = offline ? `<div class="banner">No signal — showing last known state</div>` : "";
+  const note    = notice ? `<div class="hint">${esc(notice)}</div>` : "";
   const hint    = state.hint ? `<div class="hint"><b>Hint.</b> ${esc(state.hint)}</div>` : "";
+  const foundBox = found ? `<div class="hint good"><b>You found him ✓ +${FIND_PTS} pts.</b>
+      ${esc(state.target_bar || "")} is the bar. Keep hitting bars for points.</div>` : "";
   const retry   = failedGuess ? `
-      <div class="hint" style="border-color:var(--red);background:rgba(224,27,36,.12);color:#ffb3b8">
+      <div class="hint alert">
         <b>That didn't send.</b> ${esc(failedGuess)} may or may not have registered —
-        it'll appear below within a few seconds if it did.
+        retrying is safe, it can't count twice.
         <div class="row" style="margin-top:12px">
           <button class="btn danger" style="min-height:52px;text-align:center;margin:0"
                   id="retry">Try again</button>
@@ -388,23 +553,38 @@ function renderGuessList(){
   h(`
     ${banner}
     <h1 style="${offline ? "margin-top:26px" : ""}">Where are you?</h1>
-    <p class="sub">Team ${team} · ${mine.length} of ${BARS.length} tried</p>
-    ${countsBar()}
-    ${hint}
-    ${retry}
-    ${BARS.map((b,i) => {
-      const used = mine.includes(b.n);
-      const seen = !used && rivals.includes(b.n);
-      return `<button class="btn" data-i="${i}" ${used ? "disabled" : ""}>
+    <p class="sub">Team ${team} · ${mine.length} of ${BARS.length} tried · 🍌 ×${banLeft}</p>
+    ${scoreStrip()}
+    ${mapHTML([{ team, bars: mine, color: TEAM_COLOR[team] }], { bananas: myBan })}
+    ${note}${foundBox}${hint}${retry}
+    ${BARS.map((b, i) => {
+      const g = gs.find(x => x.bar === b.n);
+      if(g){
+        const isTarget = g.correct;
+        return `<div class="usedrow">
+          <div class="info ${isTarget ? "found" : ""}">
+            <div class="name">${esc(b.n)}${isTarget ? " ✓" : ""}</div>
+            <div class="addr">${esc(b.a)}${g.photo ? " · 📸 proof in" : ""}</div>
+          </div>
+          ${myBan.includes(b.n) ? `<span class="placed" title="your banana">🍌</span>`
+            : (!isTarget && banLeft > 0) ? `<button class="trap" data-trap="${i}">🍌 trap</button>` : ""}
+        </div>`;
+      }
+      const seen = rivals.includes(b.n);
+      return `<button class="btn" data-i="${i}">
         <div class="name">${esc(b.n)}</div>
         <div class="addr">${esc(b.a)}${seen ? " · another team tried this" : ""}</div>
       </button>`;
     }).join("")}
-    <p class="foot">Tap the bar you are standing in. Honour system.</p>
+    <p class="foot">Tap the bar you are standing in. Honour system.<br>
+      🍌 Trap a bar you've visited — rivals who guess it drink a DOUBLED forfeit.</p>
   `);
 
   el.querySelectorAll("[data-i]").forEach(b => b.onclick = () => {
-    pending = BARS[+b.dataset.i]; renderConfirm();
+    notice = null; pending = BARS[+b.dataset.i]; sheetArmedAt = Date.now(); render();
+  });
+  el.querySelectorAll("[data-trap]").forEach(b => b.onclick = () => {
+    notice = null; bananaPending = BARS[+b.dataset.trap].n; sheetArmedAt = Date.now(); render();
   });
   const r = document.getElementById("retry");
   if(r) r.onclick = () => submitGuess(failedGuess);
@@ -412,83 +592,140 @@ function renderGuessList(){
   if(d) d.onclick = () => { failedGuess = null; render(); };
 }
 
-function renderConfirm(){
+/* Buttons inside sheets arm ARM_MS after the sheet opened, so the second half
+   of a double-tap can't land on them. */
+function armButton(btn, onclick){
+  if(!btn) return;
+  const wait = Math.max(0, sheetArmedAt + ARM_MS - Date.now());
+  if(wait > 0){
+    btn.disabled = true;
+    setTimeout(() => { btn.disabled = sending; }, wait);
+  }
+  btn.onclick = onclick;
+}
+
+function attachGuessSheet(){
   const bar = pending;
   el.insertAdjacentHTML("beforeend", `
-    <div class="sheet" id="sheet">
+    <div class="sheet">
       <div class="sheet-inner">
         <h2>You're at ${esc(bar.n)}?</h2>
         <p>${esc(bar.a)} — you only get one shot at each bar.</p>
         <button class="btn primary" style="text-align:center" id="yes"
                 ${sending ? "disabled" : ""}>${sending ? "Sending…" : "Yes — submit"}</button>
-        <button class="btn ghost" style="text-align:center;margin:0" id="no">Cancel</button>
+        <button class="btn ghost" style="text-align:center;margin:0" id="no"
+                ${sending ? "disabled" : ""}>Cancel</button>
       </div>
     </div>`);
-  document.getElementById("yes").onclick = () => submitGuess(bar.n);
-  document.getElementById("no").onclick  = () => { pending = null; render(); };
+  armButton(document.getElementById("yes"), () => submitGuess(bar.n));
+  document.getElementById("no").onclick = () => { pending = null; render(); };
 }
 
-function renderCooldown(left){
-  const last    = (state.my_guesses || []).slice(-1)[0];
+function attachBananaSheet(){
+  const bar = bananaPending;
+  const left = state && state.bananas_left != null ? state.bananas_left : 3;
+  el.insertAdjacentHTML("beforeend", `
+    <div class="sheet">
+      <div class="sheet-inner">
+        <h2>🍌 Trap ${esc(bar)}?</h2>
+        <p>Any rival team that guesses it gets a DOUBLED forfeit. They can't see it coming.
+           ${left - 1} banana${left - 1 === 1 ? "" : "s"} left after this.</p>
+        <button class="btn" style="text-align:center;background:var(--amber);color:#241d00;font-weight:800"
+                id="byes">Drop the banana</button>
+        <button class="btn ghost" style="text-align:center;margin:0" id="bno">Cancel</button>
+      </div>
+    </div>`);
+  armButton(document.getElementById("byes"), () => dropBanana(bar));
+  document.getElementById("bno").onclick = () => { bananaPending = null; render(); };
+}
+
+function renderCooldown(left, last){
   const wheelOn = state.wheel !== false;
-  const f       = last && wheelOn ? forfeitFor(team, last.bar) : null;
-  const spunKey = last ? "stag_spun_" + team + "_" + last.bar : null;
-  const spun    = spunKey && recall(spunKey) === "1";
+  const mult    = last.mult || 1;
+  const by      = last.by || [];
+  const f       = wheelOn ? forfeitFor(team, last.bar) : null;
+  const spunKey = "stag_spun_" + team + "_" + last.bar;
+  const spun    = isSpun(spunKey);
+  const showProof = f && spun && !f.free;
   const ordText = !f  ? "Buy a round before you move on."
                 : !spun ? "Spin for the forfeit round."
                 : f.free ? "You got away with it. Move on when the timer ends."
                 : "Buy the round before you move on.";
   h(`
-    <div class="full wrong" style="justify-content:flex-start">
-      <div style="margin:auto;display:flex;flex-direction:column;align-items:center;padding:10px 0">
-        <p class="huge" style="font-size:clamp(36px,11vw,56px)">NOT HERE</p>
-        <p class="order" id="ford" style="font-size:clamp(19px,5.5vw,26px)">${ordText}</p>
-        ${f ? wheelHTML(f, spun) : ""}
-        <p class="order" id="fresult"
-           style="min-height:1.2em;font-size:clamp(22px,7vw,30px);margin-top:10px">
-          ${spun && f ? forfeitText(f) : ""}</p>
-        <p class="timer" id="cdtimer"
-           style="font-size:clamp(38px,11vw,60px);margin:14px 0 2px">${mmss(left)}</p>
+    <div class="full wrong">
+      <div class="inner">
+        <p class="huge">NOT HERE</p>
+        ${mult > 1 ? `<div class="banbanner">🍌 BANANA'D BY ${by.map(esc).join(" & ") || "A RIVAL"}
+            — FORFEIT ${mult === 2 ? "DOUBLED" : "×" + mult}</div>` : ""}
+        <p class="order" id="ford">${ordText}</p>
+        ${f ? wheelHTML(f, spun, mult) : ""}
+        <p class="order" id="fresult" style="min-height:1.2em;margin-top:10px">
+          ${spun && f ? forfeitText(f, mult) : ""}</p>
+        ${showProof ? (
+          last.photo
+            ? `<div class="proofok">📸 PROOF IN
+                 <img src="${PHOTO_BASE + encodeURIComponent(last.photo)}" alt="proof"></div>`
+            : uploading
+              ? `<div class="proofok">📸 Uploading…</div>`
+              : `<button class="proofbtn" id="proofbtn">📸 UPLOAD PROOF OF THE ROUND</button>
+                 <input type="file" accept="image/*" capture="environment" id="prooffile" hidden>`
+        ) : ""}
+        <p class="timer" id="cdtimer">${mmss(left)}</p>
         <p class="timerlabel">until you can guess again</p>
-        ${last ? `<p class="whichbar">Wrong: ${esc(last.bar)}</p>` : ""}
+        <p class="whichbar">Wrong: ${esc(last.bar)}</p>
       </div>
     </div>`);
   if(f && !spun){
     const b = document.getElementById("spinbtn");
-    if(b) b.onclick = () => spinWheel(f, spunKey);
+    if(b) b.onclick = () => spinWheel(f, spunKey, mult);
+  }
+  const pb = document.getElementById("proofbtn");
+  if(pb){
+    const fi = document.getElementById("prooffile");
+    pb.onclick = () => fi.click();
+    fi.onchange = () => uploadProof(last.bar, fi.files[0]);
   }
 }
 
-function renderWin(){
+function renderFound(left){
   h(`
     <div class="full win">
-      <p class="huge">YOU<br>FOUND IT</p>
-      <p class="order">Stay where you are.<br>The table is reserved.</p>
-      <p class="whichbar">${esc(state.target_bar || "")} · Team ${team}</p>
+      <div class="inner">
+        <p class="huge">YOU<br>FOUND HIM</p>
+        <p class="order">+${FIND_PTS} POINTS · The table is reserved — have one here.</p>
+        <p class="whichbar">${esc(state.target_bar || "")} · Team ${team}</p>
+        <p class="timer" id="cdtimer">${mmss(left)}</p>
+        <p class="timerlabel">until you're back hunting for points</p>
+      </div>
     </div>`);
 }
 
 function renderOver(){
-  const c = state.counts || {};
-  const iWon = state.winning_team === team;
+  const sc = state.scores || {};
+  const fd = state.found  || {};
+  const ranked = TEAMS.slice().sort((a, b) => (sc[b] || 0) - (sc[a] || 0));
+  const top = sc[ranked[0]] || 0;
+  const tied = ranked.filter(t => (sc[t] || 0) === top);
+  const headline = tied.length > 1 ? "DEAD HEAT" : "TEAM " + ranked[0] + " WIN";
+  const subline  = tied.length > 1
+    ? tied.join(" & ") + " tie on " + top + " pts — settle it at the bar."
+    : (sc[ranked[0]] || 0) + " points.";
   h(`
     <div class="full over">
-      <p class="huge" style="font-size:clamp(38px,12vw,60px)">
-        ${state.winning_team ? "TEAM " + state.winning_team : "TIME'S UP"}
-      </p>
-      <p class="order" style="font-size:clamp(20px,6vw,28px)">
-        ${state.winning_team ? "found it first." : "Nobody found it."}
-      </p>
-      <p class="order" style="font-size:clamp(22px,7vw,32px);color:#8ee79f">
-        ${esc(state.target_bar || "")}
-      </p>
-      <p class="whichbar" style="margin-top:22px">
-        ${TEAMS.map(t => `${t} ${c[t] || 0}`).join(" · ")} guesses
-      </p>
-      <p class="whichbar" style="margin-top:18px;font-size:17px;font-weight:600">
-        ${iWon ? "Well done. Drinks are on everyone else."
-               : "Get there. You owe the groom a drink."}
-      </p>
+      <div class="inner">
+        <p class="huge" style="font-size:clamp(34px,10vw,52px)">${headline}</p>
+        <p class="order" style="font-size:clamp(18px,5vw,24px)">${subline}</p>
+        <p class="order" style="color:#8ee79f">The bar was ${esc(state.target_bar || "—")}</p>
+        <div style="width:100%;max-width:340px;margin-top:20px">
+          ${ranked.map((t, i) => `
+            <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-weight:800">${i + 1}. ${t}${fd[t] ? " ✓ found him" : ""}</span>
+              <span style="font-size:22px;font-weight:800">${sc[t] || 0}</span>
+            </div>`).join("")}
+        </div>
+        <p class="whichbar" style="margin-top:18px">
+          Anyone who never found him buys the groom a drink.</p>
+      </div>
     </div>`);
 }
 
@@ -513,11 +750,11 @@ function renderAdmin(){
     return;
   }
 
-  const g = admin.game, c = admin.counts || {};
+  const g = admin.game, sc = admin.scores || {}, fd = admin.found || {};
   const feed  = admin.guesses || [];
+  const bans  = admin.bananas || [];
   const early = { "Pivoteka Žižkoff":"closes 22:00", "SMÄD craft beer bar":"closes 00:00" };
 
-  // Per-team lock state, mirroring the server's waiver logic.
   const lockLeft = t => {
     const gs = feed.filter(x => x.team === t);
     if(!gs.length) return 0;
@@ -528,33 +765,45 @@ function renderAdmin(){
   };
 
   const teamCards = TEAMS.map(t => {
-    const gs   = feed.filter(x => x.team === t);        // newest first
+    const gs = feed.filter(x => x.team === t);
     const last = gs[0];
     const lock = lockLeft(t);
-    const found = gs.some(x => x.correct);
-    return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;
-                        padding:10px 12px;margin-bottom:8px">
+    const myBans = bans.filter(b => b.team === t);
+    const photos = gs.filter(x => x.photo).length;
+    const wrongs = gs.filter(x => !x.correct).length;
+    return `<div class="card">
       <div style="display:flex;justify-content:space-between;font-weight:700">
-        <span>${t}${found ? ' <span style="color:var(--green)">✓ FOUND HIM</span>' : ""}</span>
-        <span>${gs.length}/${BARS.length} tried</span></div>
+        <span style="color:${TEAM_COLOR[t]}">${t}${fd[t] ? ' <span style="color:var(--green)">✓ FOUND HIM</span>' : ""}</span>
+        <span>${sc[t] || 0} pts</span></div>
       <div style="color:var(--dim);font-size:13px;margin-top:3px">
-        ${last ? `last: ${esc(last.bar)}${last.correct ? " ✓"
-                   : g.wheel_enabled ? " — " + forfeitText(forfeitFor(t, last.bar)) : ""}`
-               : "no guesses yet"}
-        · ${lock > 0 ? `locked ${mmss(lock)}` : "free to guess"}</div>
+        ${gs.length}/${BARS.length} bars · 🍌 ${3 - myBans.length} left · 📸 ${photos}/${wrongs}
+        · ${lock > 0 ? `locked ${mmss(lock)}` : "free"}
+        ${last ? `<br>last: ${esc(last.bar)}${last.correct ? " ✓"
+                 : g.wheel_enabled ? " — " + forfeitText(forfeitFor(t, last.bar), last.mult) : ""}` : ""}</div>
     </div>`;
   }).join("");
 
+  const routes = TEAMS.map(t => ({
+    team: t, color: TEAM_COLOR[t],
+    bars: feed.filter(x => x.team === t).slice().reverse().map(x => x.bar),
+  }));
+
   h(`
     <h1>Admin</h1>
-    <p class="sub">Status: <b>${g.status}</b>${g.winning_team ? " · won by " + g.winning_team : ""}</p>
+    <p class="sub">Status: <b>${g.status}</b> ·
+      ${TEAMS.map(t => `${t} ${sc[t] || 0}`).join(" · ")}</p>
 
-    ${!g.target_bar ? `<div class="hint" style="border-color:var(--red);background:rgba(224,27,36,.12);color:#ffb3b8">
-      <b>No target set.</b> Every guess will come back wrong and nobody can win.
+    ${!g.target_bar ? `<div class="hint alert">
+      <b>No target set.</b> Every guess will come back wrong and nobody can bank the ${FIND_PTS} pts.
       Set it below before you send the link out.</div>` : ""}
 
     <label>Teams</label>
     ${teamCards}
+
+    <label>All routes</label>
+    ${mapHTML(routes, { legend: true, bananas: bans.map(b => b.bar) })}
+    ${bans.length ? `<div class="card" style="font-size:13px;color:var(--dim)">
+       ${bans.map(b => `🍌 ${b.team} trapped ${esc(b.bar)}`).join("<br>")}</div>` : ""}
 
     <label>Target bar</label>
     <select id="target">
@@ -596,7 +845,7 @@ function renderAdmin(){
     </div>
 
     <label>Danger</label>
-    <button class="btn danger" style="text-align:center" id="end">End game &amp; reveal</button>
+    <button class="btn danger" style="text-align:center" id="end">End game &amp; reveal scores</button>
     <button class="btn ghost" style="text-align:center;border-color:var(--red);color:#ff9aa0"
             id="reset">Reset everything</button>
 
@@ -605,19 +854,30 @@ function renderAdmin(){
       ${feed.map(x => `<div>
         <span class="t">${new Date(x.at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>
         <span class="tm">${x.team}</span>
-        <span class="${x.correct ? "ok" : ""}">${esc(x.bar)}${x.correct ? " ✓"
-          : g.wheel_enabled ? ` <span style="color:var(--dim)">· ${forfeitText(forfeitFor(x.team, x.bar))}</span>` : ""}</span>
+        <span class="${x.correct ? "ok" : ""}" style="flex:1">${esc(x.bar)}${x.correct ? ` ✓ +${FIND_PTS}`
+          : (x.mult > 1 ? " 🍌×" + x.mult : "") +
+            (g.wheel_enabled ? ` <span style="color:var(--dim)">· ${forfeitText(forfeitFor(x.team, x.bar), x.mult)}</span>` : "")}</span>
+        ${x.photo ? `<a href="${PHOTO_BASE + encodeURIComponent(x.photo)}" target="_blank">
+           <img src="${PHOTO_BASE + encodeURIComponent(x.photo)}" alt="proof"></a>` : ""}
       </div>`).join("") || '<div style="color:var(--dim)">No guesses yet.</div>'}
     </div>
     <p class="foot"><a href="#" style="color:var(--dim)">← back to game</a></p>
   `);
 
-  document.getElementById("target").onchange    = e => adminCall("set_target", e.target.value);
-  document.getElementById("cd").onchange        = e => adminCall("set_cooldown", String(Math.round(e.target.value*60)));
-  document.getElementById("hint").onchange      = e => adminCall("set_hint", e.target.value);
-  document.getElementById("hintafter").onchange = e => adminCall("set_hint_after", e.target.value);
-  document.getElementById("wheel").onclick      = () => adminCall("set_wheel", g.wheel_enabled ? "false" : "true");
-  document.getElementById("rivals").onclick     = () => adminCall("set_rivals", g.show_rivals ? "false" : "true");
+  document.getElementById("target").onchange = e => adminCall("set_target", e.target.value);
+  document.getElementById("cd").onchange = e => {
+    const m = parseInt(e.target.value, 10);
+    if(Number.isNaN(m) || m < 0){ e.target.value = Math.round(g.cooldown_seconds/60); return; }
+    adminCall("set_cooldown", String(m * 60));
+  };
+  document.getElementById("hint").onchange = e => adminCall("set_hint", e.target.value);
+  document.getElementById("hintafter").onchange = e => {
+    const n = parseInt(e.target.value, 10);
+    if(Number.isNaN(n) || n < 1){ e.target.value = g.hint_after; return; }
+    adminCall("set_hint_after", String(n));
+  };
+  document.getElementById("wheel").onclick  = () => adminCall("set_wheel", g.wheel_enabled ? "false" : "true");
+  document.getElementById("rivals").onclick = () => adminCall("set_rivals", g.show_rivals ? "false" : "true");
   el.querySelectorAll("[data-unlock]").forEach(b =>
     b.onclick = () => adminCall("unlock", b.dataset.unlock));
   document.getElementById("savepass").onclick = async () => {
@@ -631,10 +891,10 @@ function renderAdmin(){
     }catch(e){ alert("Network failed — try again"); }
   };
   document.getElementById("end").onclick = () => {
-    if(confirm("End the game and reveal the bar to all 15 phones?")) adminCall("end_game");
+    if(confirm("End the game and show final scores on all 15 phones?")) adminCall("end_game");
   };
   document.getElementById("reset").onclick = () => {
-    if(confirm("Wipe every guess and restart? This cannot be undone.")) adminCall("reset");
+    if(confirm("Wipe every guess, banana and photo record, and restart? This cannot be undone.")) adminCall("reset");
   };
 }
 
@@ -652,18 +912,18 @@ refresh();
 
 setInterval(refresh, POLL_MS);
 
-/* Countdown tick. Updates the timer text in place rather than re-rendering,
-   so it can never interrupt the wheel animation or eat a tap. */
+/* Countdown tick: surgical text update only, so it can never interrupt the
+   wheel, an upload, or an open sheet. */
 let lastLeft = 0;
 setInterval(() => {
-  if(location.hash === "#admin" || !team || !state || pending || sending || spinning) return;
+  if(location.hash === "#admin" || !team || !state || spinning || uploading) return;
   const l = cooldownLeft();
   const t = document.getElementById("cdtimer");
   if(l > 0){
     if(t) t.textContent = mmss(l);
-    else if(state.status === "running") render();  // e.g. woke from a locked phone
+    else if(state.status === "running" && !sending) render();  // e.g. woke from lock
   }else if(lastLeft > 0){
-    render();                                      // cooldown just expired
+    render();                                                  // cooldown just expired
   }
   lastLeft = l;
 }, 500);
