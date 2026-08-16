@@ -1,0 +1,2 @@
+# server-side SQL stays local — it documents admin internals
+schema.sql

@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c">
+<title>Find the Groom</title>
+<style>
+  :root{
+    --bg:#0a0a0c; --panel:#141419; --line:#26262e;
+    --ink:#f4f4f6; --dim:#8c8c99;
+    --red:#e01b24; --green:#1a9e3c; --amber:#c9a227;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink)}
+  body{
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    min-height:100dvh; overscroll-behavior:none;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  #app{max-width:520px;margin:0 auto;padding:16px;min-height:100dvh;display:flex;flex-direction:column}
+
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--dim);font-size:14px;margin:0 0 20px}
+
+  button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+  .btn{
+    display:block;width:100%;min-height:66px;padding:14px 16px;margin-bottom:10px;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    text-align:left;transition:transform .06s;
+  }
+  .btn:active{transform:scale(.985)}
+  .btn .name{font-size:19px;font-weight:600;letter-spacing:-.01em}
+  .btn .addr{font-size:13px;color:var(--dim);margin-top:2px}
+  .btn[disabled]{opacity:.32;pointer-events:none}
+  .btn[disabled] .name{text-decoration:line-through}
+  .btn.big{min-height:78px;text-align:center;font-size:26px;font-weight:700;letter-spacing:.06em}
+
+  .primary{background:var(--green);border-color:var(--green);font-weight:700}
+  .danger{background:var(--red);border-color:var(--red);font-weight:700}
+  .ghost{background:transparent}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+
+  .counts{
+    display:flex;gap:8px;margin-bottom:16px;font-size:13px;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;
+  }
+  .counts div{flex:1;text-align:center}
+  .counts b{display:block;font-size:20px;font-weight:700;margin-top:2px}
+  .counts .me{color:var(--amber)}
+
+  .hint{
+    background:rgba(201,162,39,.12);border:1px solid var(--amber);color:#f0d98a;
+    border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:15px;
+  }
+
+  /* full-screen result states */
+  .full{
+    position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:24px;
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  }
+  .full.wrong{background:var(--red)}
+  .full.win{background:var(--green)}
+  .full.over{background:var(--panel)}
+  .huge{font-size:clamp(52px,17vw,84px);line-height:.92;font-weight:800;letter-spacing:-.03em;margin:0}
+  .order{font-size:clamp(26px,8vw,38px);font-weight:800;line-height:1.08;margin:18px 0 0;text-wrap:balance}
+  .whichbar{font-size:15px;opacity:.85;margin:14px 0 0}
+  .timer{font-size:clamp(56px,20vw,96px);font-weight:800;font-variant-numeric:tabular-nums;margin:26px 0 4px;letter-spacing:-.03em}
+  .timerlabel{font-size:14px;opacity:.8;text-transform:uppercase;letter-spacing:.12em}
+
+  .banner{
+    position:fixed;left:0;right:0;top:0;z-index:60;background:var(--amber);color:#241d00;
+    font-size:13px;font-weight:600;text-align:center;padding:7px 12px;
+  }
+
+  .sheet{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.72);display:flex;align-items:flex-end}
+  .sheet-inner{width:100%;max-width:520px;margin:0 auto;background:var(--panel);
+    border-radius:20px 20px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line)}
+  .sheet h2{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
+  .sheet p{color:var(--dim);margin:0 0 20px;font-size:14px}
+
+  input,select{
+    width:100%;padding:14px;background:#0e0e12;color:var(--ink);
+    border:1px solid var(--line);border-radius:12px;font:inherit;margin-bottom:10px;
+  }
+  label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--dim);margin:16px 0 6px}
+
+  .feed{font-size:14px}
+  .feed div{display:flex;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .feed .t{width:52px;color:var(--dim);font-variant-numeric:tabular-nums;flex:none}
+  .feed .tm{width:62px;font-weight:700;flex:none}
+  .feed .ok{color:var(--green);font-weight:700}
+  .warn{color:var(--amber);font-size:13px;margin:6px 0 0}
+  .spacer{flex:1}
+  .foot{color:var(--dim);font-size:12px;text-align:center;padding-top:18px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============================================================ config === */
+const SUPABASE_URL = "https://yfzbgvqthrgqardavayq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_vqCpRtzUzIAruuDcrNyIFw_hZHwZxG6";
+
+const TEAMS = ["ALPHA", "BRAVO", "CHARLIE"];
+
+/* Order matters — presented exactly as briefed. Names here must match the
+   target_bar stored in the database, character for character. */
+const BARS = [
+  { n:"U Sadu",                  a:"Škroupovo nám. 5" },
+  { n:"Áčko Žižkov",             a:"Bořivojova 98" },
+  { n:"Bukowski's Bar",          a:"Bořivojova 86" },
+  { n:"Woodoo",                  a:"Bořivojova 69" },
+  { n:"Bar Bohužel",             a:"Bořivojova 61 · cash only" },
+  { n:"Theatrino Cocktail Bar",  a:"Bořivojova 53" },
+  { n:"Maverick's Irish pub",    a:"Žižkov 204" },
+  { n:"SMÄD craft beer bar",     a:"Táboritská 10" },
+  { n:"Pivoteka Žižkoff",        a:"Milíčova 6" },
+  { n:"Pub a Bar Na Plech",      a:"Bořivojova 503" },
+  { n:"Tiki Taky Bar",           a:"Seifertova 20" },
+  { n:"Vlkova 26",               a:"Vlkova 26" },
+];
+
+const POLL_MS = 6000;
+
+/* ============================================================= state === */
+let team        = null;   // "ALPHA" | ...
+let state       = null;   // last good payload from stag_state
+let clockSkew   = 0;      // serverNow - deviceNow, ms. Phones at 2am lie.
+let pending     = null;   // bar awaiting confirmation
+let sending     = false;
+let failedGuess = null;   // bar whose submit blew up — offer a retry
+let offline     = false;
+let admin       = null;   // admin payload once authenticated
+let adminPass   = "";
+
+const el = document.getElementById("app");
+const serverNow = () => Date.now() + clockSkew;
+
+/* device-local team memory; plain try/catch because private mode can throw */
+function remember(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+function recall(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+
+/* =========================================================== network === */
+async function rpc(fn, body){
+  const res = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
+    method:"POST",
+    headers:{
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body || {}),
+  });
+  if(!res.ok) throw new Error("HTTP " + res.status + " " + (await res.text()));
+  const data = await res.json();
+  if(data && data.server_now) clockSkew = new Date(data.server_now).getTime() - Date.now();
+  return data;
+}
+
+async function refresh(){
+  try{
+    state = await rpc("stag_state", { p_team: team });
+    offline = false;
+  }catch(e){
+    offline = true;
+  }
+  render();
+}
+
+/* ========================================================== cooldown === */
+/* Derived from the server's timestamp, never from a running counter, so it
+   survives a refresh, a locked phone, and a browser tab being evicted. */
+function cooldownLeft(){
+  if(!state || !state.last_guess_at) return 0;
+  const ends = new Date(state.last_guess_at).getTime() + state.cooldown_seconds * 1000;
+  return Math.max(0, ends - serverNow());
+}
+function mmss(ms){
+  const s = Math.ceil(ms / 1000);
+  return String(Math.floor(s / 60)).padStart(2,"0") + ":" + String(s % 60).padStart(2,"0");
+}
+function buzz(pattern){ try{ navigator.vibrate && navigator.vibrate(pattern); }catch(e){} }
+
+/* ============================================================ actions === */
+async function submitGuess(bar){
+  if(sending) return;
+  sending = true; pending = null; failedGuess = null; render();
+  try{
+    const r = await rpc("stag_guess", { p_team: team, p_bar: bar });
+    if(r.result === "correct")   buzz([120,60,120,60,400]);
+    else if(r.result === "wrong") buzz(500);
+    await refresh();
+  }catch(e){
+    // Never silently lose a guess: surface it, and let them retry. The retry
+    // is safe because the server treats a repeat of the same bar as a replay.
+    failedGuess = bar;
+  }finally{
+    sending = false; render();
+  }
+}
+
+/* ============================================================== views === */
+function h(html){ el.innerHTML = html; }
+
+function render(){
+  if(location.hash === "#admin") return renderAdmin();
+  if(!team)   return renderJoin();
+  if(!state)  return renderConnecting();
+
+  const won      = state.status === "won";
+  const revealed = state.status === "revealed";
+  if(won && state.winning_team === team) return renderWin();
+  if(won || revealed)                    return renderOver();
+
+  const left = cooldownLeft();
+  if(left > 0) return renderCooldown(left);
+  return renderGuessList();
+}
+
+/* First load hasn't landed yet. On a dead signal this is where people get
+   stranded, so say what's happening and give them something to press. */
+function renderConnecting(){
+  h(`
+    <h1>Find the Groom</h1>
+    <p class="sub">Team ${team}</p>
+    ${offline
+      ? `<div class="hint" style="border-color:var(--red);background:rgba(224,27,36,.12);color:#ffb3b8">
+           <b>Can't reach the server.</b> Walk towards the door or the street —
+           cellar bars kill the signal. Retrying automatically.
+         </div>
+         <button class="btn primary" style="text-align:center" id="again">Retry now</button>`
+      : `<p class="sub">Connecting…</p>`}
+    <div class="spacer"></div>
+    <button class="btn ghost" style="text-align:center" id="switch">Change team</button>
+  `);
+  const a = document.getElementById("again");
+  if(a) a.onclick = refresh;
+  document.getElementById("switch").onclick = () => {
+    team = null; remember("stag_team", ""); render();
+  };
+}
+
+function renderJoin(){
+  h(`
+    <h1>Find the Groom</h1>
+    <p class="sub">Žižkov · Friday night. Pick your team.</p>
+    ${TEAMS.map(t => `<button class="btn big" data-team="${t}">${t}</button>`).join("")}
+    <div class="spacer"></div>
+    <p class="foot">One bar has a table reserved. Find it first.</p>
+  `);
+  el.querySelectorAll("[data-team]").forEach(b => b.onclick = () => {
+    team = b.dataset.team; remember("stag_team", team);
+    render(); refresh();
+  });
+}
+
+function countsBar(){
+  const c = (state && state.counts) || {};
+  return `<div class="counts">${TEAMS.map(t =>
+    `<div class="${t === team ? "me" : ""}">${t}<b>${c[t] || 0}</b></div>`).join("")}</div>`;
+}
+
+function renderGuessList(){
+  const mine    = (state.my_guesses || []).map(g => g.bar);
+  const rivals  = state.rival_bars || [];
+  const banner  = offline ? `<div class="banner">No signal — showing last known state</div>` : "";
+  const hint    = state.hint ? `<div class="hint"><b>Hint.</b> ${esc(state.hint)}</div>` : "";
+  const retry   = failedGuess ? `
+      <div class="hint" style="border-color:var(--red);background:rgba(224,27,36,.12);color:#ffb3b8">
+        <b>That didn't send.</b> ${esc(failedGuess)} may or may not have registered —
+        it'll appear below within a few seconds if it did.
+        <div class="row" style="margin-top:12px">
+          <button class="btn danger" style="min-height:52px;text-align:center;margin:0"
+                  id="retry">Try again</button>
+          <button class="btn ghost" style="min-height:52px;text-align:center;margin:0"
+                  id="dismiss">Dismiss</button>
+        </div>
+      </div>` : "";
+
+  h(`
+    ${banner}
+    <h1 style="${offline ? "margin-top:26px" : ""}">Where are you?</h1>
+    <p class="sub">Team ${team} · ${mine.length} of ${BARS.length} tried</p>
+    ${countsBar()}
+    ${hint}
+    ${retry}
+    ${BARS.map((b,i) => {
+      const used = mine.includes(b.n);
+      const seen = !used && rivals.includes(b.n);
+      return `<button class="btn" data-i="${i}" ${used ? "disabled" : ""}>
+        <div class="name">${esc(b.n)}</div>
+        <div class="addr">${esc(b.a)}${seen ? " · another team tried this" : ""}</div>
+      </button>`;
+    }).join("")}
+    <p class="foot">Tap the bar you are standing in. Honour system.</p>
+  `);
+
+  el.querySelectorAll("[data-i]").forEach(b => b.onclick = () => {
+    pending = BARS[+b.dataset.i]; renderConfirm();
+  });
+  const r = document.getElementById("retry");
+  if(r) r.onclick = () => submitGuess(failedGuess);
+  const d = document.getElementById("dismiss");
+  if(d) d.onclick = () => { failedGuess = null; render(); };
+}
+
+function renderConfirm(){
+  const bar = pending;
+  el.insertAdjacentHTML("beforeend", `
+    <div class="sheet" id="sheet">
+      <div class="sheet-inner">
+        <h2>You're at ${esc(bar.n)}?</h2>
+        <p>${esc(bar.a)} — you only get one shot at each bar.</p>
+        <button class="btn primary" style="text-align:center" id="yes"
+                ${sending ? "disabled" : ""}>${sending ? "Sending…" : "Yes — submit"}</button>
+        <button class="btn ghost" style="text-align:center;margin:0" id="no">Cancel</button>
+      </div>
+    </div>`);
+  document.getElementById("yes").onclick = () => submitGuess(bar.n);
+  document.getElementById("no").onclick  = () => { pending = null; render(); };
+}
+
+function renderCooldown(left){
+  const last = (state.my_guesses || []).slice(-1)[0];
+  h(`
+    <div class="full wrong">
+      <p class="huge">NOT<br>HERE</p>
+      <p class="order">Buy a round<br>before you move on.</p>
+      <p class="timer">${mmss(left)}</p>
+      <p class="timerlabel">until you can guess again</p>
+      ${last ? `<p class="whichbar">Wrong: ${esc(last.bar)}</p>` : ""}
+    </div>`);
+}
+
+function renderWin(){
+  h(`
+    <div class="full win">
+      <p class="huge">YOU<br>FOUND IT</p>
+      <p class="order">Stay where you are.<br>The table is reserved.</p>
+      <p class="whichbar">${esc(state.target_bar || "")} · Team ${team}</p>
+    </div>`);
+}
+
+function renderOver(){
+  const c = state.counts || {};
+  const iWon = state.winning_team === team;
+  h(`
+    <div class="full over">
+      <p class="huge" style="font-size:clamp(38px,12vw,60px)">
+        ${state.winning_team ? "TEAM " + state.winning_team : "TIME'S UP"}
+      </p>
+      <p class="order" style="font-size:clamp(20px,6vw,28px)">
+        ${state.winning_team ? "found it first." : "Nobody found it."}
+      </p>
+      <p class="order" style="font-size:clamp(22px,7vw,32px);color:#8ee79f">
+        ${esc(state.target_bar || "")}
+      </p>
+      <p class="whichbar" style="margin-top:22px">
+        ${TEAMS.map(t => `${t} ${c[t] || 0}`).join(" · ")} guesses
+      </p>
+      <p class="whichbar" style="margin-top:18px;font-size:17px;font-weight:600">
+        ${iWon ? "Well done. Drinks are on everyone else."
+               : "Get there. You owe the groom a drink."}
+      </p>
+    </div>`);
+}
+
+/* ============================================================== admin === */
+async function adminCall(action, value){
+  try{
+    const r = await rpc("stag_admin", { p_pass: adminPass, p_action: action, p_value: value });
+    if(!r.ok){ alert(r.message || "Rejected"); return; }
+    admin = r; renderAdmin();
+  }catch(e){ alert("Network failed — try again"); }
+}
+
+function renderAdmin(){
+  if(!admin){
+    h(`<h1>Admin</h1><p class="sub">Passphrase</p>
+       <input id="p" type="password" autocomplete="off">
+       <button class="btn primary" style="text-align:center" id="go">Unlock</button>
+       <p class="foot"><a href="#" style="color:var(--dim)">← back to game</a></p>`);
+    const go = () => { adminPass = document.getElementById("p").value; adminCall("read"); };
+    document.getElementById("go").onclick = go;
+    document.getElementById("p").onkeydown = e => { if(e.key === "Enter") go(); };
+    return;
+  }
+
+  const g = admin.game, c = admin.counts || {};
+  const early = { "Pivoteka Žižkoff":"closes 22:00", "SMÄD craft beer bar":"closes 00:00" };
+  h(`
+    <h1>Admin</h1>
+    <p class="sub">Status: <b>${g.status}</b>${g.winning_team ? " · won by " + g.winning_team : ""}
+       · ${TEAMS.map(t => `${t} ${c[t]||0}`).join(" · ")}</p>
+
+    ${!g.target_bar ? `<div class="hint" style="border-color:var(--red);background:rgba(224,27,36,.12);color:#ffb3b8">
+      <b>No target set.</b> Every guess will come back wrong and nobody can win.
+      Set it below before you send the link out.</div>` : ""}
+
+    <label>Target bar</label>
+    <select id="target">
+      <option value="">— not set —</option>
+      ${BARS.map(b => `<option value="${esc(b.n)}" ${g.target_bar === b.n ? "selected" : ""}>
+        ${esc(b.n)}${early[b.n] ? "  ⚠ " + early[b.n] : ""}</option>`).join("")}
+    </select>
+    ${early[g.target_bar] ? `<p class="warn">⚠ Target ${esc(g.target_bar)} ${early[g.target_bar]}.</p>` : ""}
+
+    <label>Cooldown (minutes)</label>
+    <input id="cd" type="number" min="0" max="60" value="${Math.round(g.cooldown_seconds/60)}">
+
+    <label>Hint (shown to a team after 4 wrong guesses)</label>
+    <input id="hint" value="${esc(g.hint_text || "")}" placeholder="e.g. He's on Bořivojova.">
+
+    <label>Unlock a team's cooldown now</label>
+    <div class="row" style="margin-bottom:10px">
+      ${TEAMS.map(t => `<button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
+        data-unlock="${t}">${t}</button>`).join("")}
+    </div>
+
+    <label>Reveal rivals' bars to everyone</label>
+    <button class="btn ghost" style="text-align:center" id="rivals">
+      Currently ${g.show_rivals ? "SHOWN — tap to hide" : "hidden — tap to show"}
+    </button>
+
+    <label>Danger</label>
+    <button class="btn danger" style="text-align:center" id="end">End game &amp; reveal</button>
+    <button class="btn ghost" style="text-align:center;border-color:var(--red);color:#ff9aa0"
+            id="reset">Reset everything</button>
+
+    <label>Live feed</label>
+    <div class="feed">
+      ${(admin.guesses||[]).map(x => `<div>
+        <span class="t">${new Date(x.at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>
+        <span class="tm">${x.team}</span>
+        <span class="${x.correct ? "ok" : ""}">${esc(x.bar)}${x.correct ? " ✓" : ""}</span>
+      </div>`).join("") || '<div style="color:var(--dim)">No guesses yet.</div>'}
+    </div>
+    <p class="foot"><a href="#" style="color:var(--dim)">← back to game</a></p>
+  `);
+
+  document.getElementById("target").onchange = e => adminCall("set_target", e.target.value);
+  document.getElementById("cd").onchange     = e => adminCall("set_cooldown", String(Math.round(e.target.value*60)));
+  document.getElementById("hint").onchange   = e => adminCall("set_hint", e.target.value);
+  document.getElementById("rivals").onclick  = () => adminCall("set_rivals", g.show_rivals ? "false" : "true");
+  el.querySelectorAll("[data-unlock]").forEach(b =>
+    b.onclick = () => adminCall("unlock", b.dataset.unlock));
+  document.getElementById("end").onclick = () => {
+    if(confirm("End the game and reveal the bar to all 15 phones?")) adminCall("end_game");
+  };
+  document.getElementById("reset").onclick = () => {
+    if(confirm("Wipe every guess and restart? This cannot be undone.")) adminCall("reset");
+  };
+}
+
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g,
+    m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+}
+
+/* =============================================================== boot === */
+team = recall("stag_team");
+if(team && !TEAMS.includes(team)) team = null;
+
+render();
+refresh();
+
+setInterval(refresh, POLL_MS);
+setInterval(() => {                     // keep the countdown moving
+  if(team && state && location.hash !== "#admin" && cooldownLeft() > 0) render();
+}, 500);
+
+document.addEventListener("visibilitychange", () => { if(!document.hidden) refresh(); });
+window.addEventListener("online", refresh);
+window.addEventListener("hashchange", () => { admin = null; render(); });
+</script>
+</body>
+</html>
