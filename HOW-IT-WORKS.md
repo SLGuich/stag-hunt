@@ -134,9 +134,21 @@ Everything below lives at **`#admin`**, behind your passphrase.
   nobody's close and you want the game to finish.
 
 ### Customising the wheel
-The segment editor gives you one row per segment: name it, mark it **FREE**
-(nobody drinks, no photo owed), or delete it. A live preview shows the wheel as
-you type. Between 2 and 8 segments; every segment has an equal chance.
+The segment editor gives you one row per segment: name it, set its **share**,
+mark it **FREE** (nobody drinks, no photo owed), or delete it. A live preview
+shows the wheel as you type. Between 2 and 8 segments.
+
+**Setting the odds.** Each segment has a share number and shows its resulting
+percentage next to it. The easiest way to think about it: *make the shares add
+up to 100 and they read straight as percentages.* The note under the preview
+tells you the running total.
+
+> Want beer at 50%? Set pints to `50` and let the other four be
+> `13, 12, 13, 12`. Total 100, and the rows read 50% / 13% / 12% / 13% / 12%.
+
+The wheel is drawn to match — a 50% segment physically takes up half the
+circle, so the spin looks honest rather than landing on a suspiciously small
+wedge. **Even odds** resets everything to an equal share.
 
 Edits apply to *future* spins only. A team mid-forfeit keeps the result they
 were already dealt — the wheel can't be used to retroactively change a round

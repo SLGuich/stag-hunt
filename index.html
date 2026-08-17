@@ -126,9 +126,15 @@
   .sheet p{color:var(--dim);margin:0 0 20px;font-size:14px}
 
   /* wheel segment editor */
-  .seg{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .seg{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:8px;margin-bottom:8px}
+  .segmain{display:flex;gap:8px;align-items:center}
+  .segopts{display:flex;gap:8px;align-items:center;margin-top:6px}
   .seg input{margin:0;flex:1;padding:12px}
-  .seg .free{min-width:70px;min-height:48px;border-radius:10px;font-size:12px;
+  .seg .wnum{flex:none;width:74px;padding:10px;text-align:center;font-weight:700}
+  .seg .pct{flex:1;font-size:15px;font-weight:700;color:var(--amber);
+    font-variant-numeric:tabular-nums}
+  .seg .free{min-width:70px;min-height:44px;border-radius:10px;font-size:12px;
     font-weight:700;letter-spacing:.04em;border:1px solid var(--line);color:var(--dim)}
   .seg .free.on{border-color:var(--green);color:#8ee79f;background:rgba(26,158,60,.14)}
   .seg .del{width:46px;min-height:48px;border-radius:10px;border:1px solid var(--line);
@@ -386,12 +392,28 @@ function drinkLabel(t){
   const mid = Math.ceil(words.length / 2);
   return [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
 }
-let DRINKS = [], SEG = 72;
+let DRINKS = [];
 function setWheelOptions(opts){
   if(!Array.isArray(opts) || opts.length < 2) opts = DEFAULT_WHEEL;
   DRINKS = opts.map(o => ({ label: drinkLabel(o.t), text: String(o.t).toUpperCase(),
-                            free: !!o.free }));
-  SEG = 360 / DRINKS.length;
+                            free: !!o.free, w: weightOf(o) }));
+}
+function weightOf(o){
+  const w = Number(o && o.w);
+  return isFinite(w) && w > 0 ? w : 1;
+}
+/* Segments are sized by weight, so a 50% slice really is half the wheel.
+   Returns each segment's start/mid/end angle in degrees clockwise from top. */
+function segGeometry(opts){
+  const list  = opts || DRINKS;
+  const total = list.reduce((s, d) => s + weightOf(d), 0) || 1;
+  let acc = 0;
+  return list.map(d => {
+    const w = weightOf(d), start = acc / total * 360;
+    acc += w;
+    const end = acc / total * 360;
+    return { start, end, mid: (start + end) / 2, span: end - start, pct: w / total * 100 };
+  });
 }
 setWheelOptions(DEFAULT_WHEEL);
 const COUNTS = [1,2,2,3,3,3,4,4,5,5];
@@ -404,9 +426,11 @@ function forfeitFor(team, bar){
   for(let i = 0; i < s.length; i++){ x = Math.imul(x ^ s.charCodeAt(i), 16777619) >>> 0; }
   const d      = x % DRINKS.length;
   const count  = COUNTS[Math.floor(x / 13) % COUNTS.length];
-  const jitter = (Math.floor(x / 131) % 37) - 18;
+  const geo    = segGeometry()[d];
+  const room   = Math.max(0, Math.min(18, geo.span / 2 - 3));
+  const jitter = room ? (Math.floor(x / 131) % (2 * room * 10)) / 10 - room : 0;
   return { count, drink: DRINKS[d], free: !!DRINKS[d].free,
-           rotation: 5 * 360 - d * SEG + jitter };
+           rotation: 5 * 360 - geo.mid + jitter };
 }
 function forfeitText(f, mult){
   if(f.free) return "FREE PASS — NOBODY DRINKS";
@@ -427,9 +451,12 @@ function forfeitOf(teamName, g){
     let x = 2166136261;
     const s = teamName + "|" + g.bar;
     for(let i = 0; i < s.length; i++){ x = Math.imul(x ^ s.charCodeAt(i), 16777619) >>> 0; }
-    const jitter = (Math.floor(x / 131) % 37) - 18;
+    // land anywhere inside the segment — narrow slices need a smaller wobble
+    const geo  = cfgMatch ? segGeometry()[g.rig_d] : { mid: 0, span: 360 };
+    const room = Math.max(0, Math.min(18, geo.span / 2 - 3));
+    const jitter = room ? (x % (2 * room * 10)) / 10 - room : 0;
     return { count: g.rig_c || 1, drink: { text }, free, cfgMatch,
-             rotation: 5 * 360 - g.rig_d * SEG + jitter };
+             rotation: 5 * 360 - geo.mid + jitter };
   }
   const f = forfeitFor(teamName, g.bar);
   f.cfgMatch = true;
@@ -438,14 +465,20 @@ function forfeitOf(teamName, g){
 
 function wheelHTML(f, spun, mult){
   const r = 140;
+  const geo = segGeometry();
   const segs = DRINKS.map((d, i) => {
-    const a0 = (i * SEG - SEG/2 - 90) * Math.PI / 180, a1 = (i * SEG + SEG/2 - 90) * Math.PI / 180;
-    const label = d.label.map((line, j) =>
+    const gm = geo[i];
+    const a0 = (gm.start - 90) * Math.PI / 180, a1 = (gm.end - 90) * Math.PI / 180;
+    // a slice too thin for two lines gets one; too thin for any gets none
+    const lines = gm.span < 28 ? [d.text.split(" ")[0]] : d.label;
+    const label = gm.span < 14 ? "" : lines.map((line, j) =>
       `<tspan x="0" dy="${j === 0 ? 0 : 14}">${line}</tspan>`).join("");
     return `<path d="M0 0 L${(Math.cos(a0)*r).toFixed(1)} ${(Math.sin(a0)*r).toFixed(1)}
-                     A${r} ${r} 0 0 1 ${(Math.cos(a1)*r).toFixed(1)} ${(Math.sin(a1)*r).toFixed(1)} Z"
-             fill="${d.free ? "rgba(255,255,255,.55)" : `rgba(255,255,255,${i % 2 ? ".30" : ".16"})`}"/>
-            <text transform="rotate(${i * SEG}) translate(0 -${r * 0.60})" text-anchor="middle"
+                     A${r} ${r} 0 ${gm.span > 180 ? 1 : 0} 1
+                     ${(Math.cos(a1)*r).toFixed(1)} ${(Math.sin(a1)*r).toFixed(1)} Z"
+             fill="${d.free ? "rgba(255,255,255,.55)" : `rgba(255,255,255,${i % 2 ? ".30" : ".16"})`}"
+             stroke="rgba(0,0,0,.28)" stroke-width="1"/>
+            <text transform="rotate(${gm.mid.toFixed(2)}) translate(0 -${r * 0.60})" text-anchor="middle"
               font-size="13" font-weight="700"
               fill="${d.free ? "var(--red)" : "#fff"}">${label}</text>`;
   }).join("");
@@ -887,24 +920,26 @@ function renderOver(){
    half-composed wheel. null = in sync with the server. */
 let wheelDraft = null;
 
-const cleanOpts = o => (o || []).map(x => ({ t: x.t || "", free: !!x.free }));
+const cleanOpts = o => (o || []).map(x => ({ t: x.t || "", free: !!x.free, w: weightOf(x) }));
 const sameOpts  = (a, b) => JSON.stringify(cleanOpts(a)) === JSON.stringify(cleanOpts(b));
 
 function wheelPreviewHTML(opts){
-  const r = 60, seg = 360 / Math.max(1, opts.length);
+  const r = 60, geo = segGeometry(opts);
   const arc = opts.map((o, i) => {
-    const a0 = (i * seg - seg/2 - 90) * Math.PI / 180;
-    const a1 = (i * seg + seg/2 - 90) * Math.PI / 180;
+    const gm = geo[i];
+    const a0 = (gm.start - 90) * Math.PI / 180, a1 = (gm.end - 90) * Math.PI / 180;
     return `<path d="M0 0 L${(Math.cos(a0)*r).toFixed(1)} ${(Math.sin(a0)*r).toFixed(1)}
-              A${r} ${r} 0 ${seg > 180 ? 1 : 0} 1
+              A${r} ${r} 0 ${gm.span > 180 ? 1 : 0} 1
               ${(Math.cos(a1)*r).toFixed(1)} ${(Math.sin(a1)*r).toFixed(1)} Z"
             fill="${o.free ? "rgba(26,158,60,.5)"
                            : `rgba(255,255,255,${i % 2 ? ".24" : ".13"})`}"
             stroke="#0a0a0c" stroke-width=".7"/>`;
   }).join("");
   const labels = opts.map((o, i) => {
+    const gm = geo[i];
+    if(gm.span < 12) return "";
     const txt = (o.t || "?").toUpperCase();
-    return `<text transform="rotate(${i * seg}) translate(0 -${r * 0.60})"
+    return `<text transform="rotate(${gm.mid.toFixed(2)}) translate(0 -${r * 0.60})"
               text-anchor="middle" font-size="6.5" font-weight="700"
               fill="${o.free ? "#8ee79f" : "#fff"}">${esc(txt.slice(0, 13))}</text>`;
   }).join("");
@@ -919,22 +954,34 @@ function wheelEditorHTML(g){
   const dirty = !sameOpts(draft, g.wheel_options);
   const blank = draft.some(o => !o.t.trim());
   const freeN = draft.filter(o => o.free).length;
+  const total = draft.reduce((s, o) => s + weightOf(o), 0);
+  const pcts  = segGeometry(draft).map(s => s.pct);
   return `
     ${wheelPreviewHTML(draft)}
     <p class="wnote">${draft.length} segments · ${freeN} free pass${freeN === 1 ? "" : "es"}
-      · each has an equal 1-in-${draft.length} chance. Free passes owe no photo.</p>
+      · shares total ${total}${total === 100 ? " (reads straight as %)" : ""}.
+      Free passes owe no photo.</p>
     ${draft.map((o, i) => `
       <div class="seg">
-        <input data-segtext="${i}" value="${esc(o.t)}" maxlength="24"
-               placeholder="segment ${i + 1}" spellcheck="false">
-        <button class="free ${o.free ? "on" : ""}" data-segfree="${i}"
-                title="free pass — nobody drinks">FREE</button>
-        <button class="del" data-segdel="${i}" ${draft.length <= 2 ? "disabled" : ""}
-                title="remove">×</button>
+        <div class="segmain">
+          <input data-segtext="${i}" value="${esc(o.t)}" maxlength="24"
+                 placeholder="segment ${i + 1}" spellcheck="false">
+          <button class="del" data-segdel="${i}" ${draft.length <= 2 ? "disabled" : ""}
+                  title="remove">×</button>
+        </div>
+        <div class="segopts">
+          <input class="wnum" type="number" min="1" max="1000" step="1"
+                 data-segw="${i}" value="${weightOf(o)}">
+          <span class="pct" data-segpct="${i}">${pcts[i].toFixed(pcts[i] < 10 ? 1 : 0)}%</span>
+          <button class="free ${o.free ? "on" : ""}" data-segfree="${i}"
+                  title="free pass — nobody drinks">FREE</button>
+        </div>
       </div>`).join("")}
     <div class="row" style="margin-bottom:10px">
       <button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
-              id="segadd" ${draft.length >= 8 ? "disabled" : ""}>+ Add segment</button>
+              id="segadd" ${draft.length >= 8 ? "disabled" : ""}>+ Add</button>
+      <button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
+              id="segeven" title="give every segment the same chance">Even odds</button>
       <button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
               id="segrevert" ${dirty ? "" : "disabled"}>Revert</button>
     </div>
@@ -946,6 +993,19 @@ function wheelEditorHTML(g){
       ${blank ? "Every segment needs a name"
               : dirty ? "Save wheel — " + draft.length + " segments"
               : "Saved"}</button>`;
+}
+
+function syncSaveBtn(draft, g){
+  const save = document.getElementById("savewheel");
+  if(!save) return;
+  const blank = draft.some(o => !o.t.trim());
+  const ok = !sameOpts(draft, g.wheel_options) && !blank;
+  save.disabled = !ok;
+  save.textContent = blank ? "Every segment needs a name"
+                   : ok ? "Save wheel — " + draft.length + " segments" : "Saved";
+  save.style.background  = ok ? "var(--amber)" : "transparent";
+  save.style.color       = ok ? "#241d00" : "var(--dim)";
+  save.style.borderColor = ok ? "var(--amber)" : "var(--line)";
 }
 
 function wireWheelEditor(g){
@@ -960,18 +1020,37 @@ function wireWheelEditor(g){
       // steal focus mid-word
       const pv = document.getElementById("wpreview");
       if(pv) pv.outerHTML = wheelPreviewHTML(draft);
-      const save = document.getElementById("savewheel");
-      const ok = !sameOpts(draft, g.wheel_options) && !draft.some(o => !o.t.trim());
-      if(save){
-        save.disabled = !ok;
-        save.textContent = draft.some(o => !o.t.trim()) ? "Every segment needs a name"
-                         : ok ? "Save wheel — " + draft.length + " segments" : "Saved";
-        save.style.background = ok ? "var(--amber)" : "transparent";
-        save.style.color = ok ? "#241d00" : "var(--dim)";
-        save.style.borderColor = ok ? "var(--amber)" : "var(--line)";
-      }
+      syncSaveBtn(draft, g);
     };
   });
+  // weight edits repaint the preview + percentages in place, keeping focus
+  el.querySelectorAll("[data-segw]").forEach(inp => {
+    inp.oninput = () => {
+      const n = parseInt(inp.value, 10);
+      draft[+inp.dataset.segw].w = (isFinite(n) && n > 0) ? Math.min(1000, n) : 1;
+      wheelDraft = draft;
+      const pv = document.getElementById("wpreview");
+      if(pv) pv.outerHTML = wheelPreviewHTML(draft);
+      const p = segGeometry(draft).map(s => s.pct);
+      el.querySelectorAll("[data-segpct]").forEach(sp => {
+        const v = p[+sp.dataset.segpct];
+        sp.textContent = v.toFixed(v < 10 ? 1 : 0) + "%";
+      });
+      const tot = draft.reduce((s, o) => s + weightOf(o), 0);
+      const note = document.querySelector(".wnote");
+      if(note) note.textContent = draft.length + " segments · " +
+        draft.filter(o => o.free).length + " free · shares total " + tot +
+        (tot === 100 ? " (reads straight as %)" : "");
+      syncSaveBtn(draft, g);
+    };
+    inp.onblur = () => { wheelDraft = draft; renderAdmin(); };
+  });
+  const even = document.getElementById("segeven");
+  if(even) even.onclick = () => {
+    const each = Math.round(100 / draft.length);
+    draft.forEach(o => { o.w = each; });
+    touch();
+  };
   el.querySelectorAll("[data-segfree]").forEach(b => b.onclick = () => {
     const i = +b.dataset.segfree; draft[i].free = !draft[i].free; touch();
   });
@@ -984,7 +1063,8 @@ function wireWheelEditor(g){
   if(rev) rev.onclick = () => { wheelDraft = null; renderAdmin(); };
   const save = document.getElementById("savewheel");
   if(save) save.onclick = () => {
-    const opts = draft.map(o => ({ t: o.t.trim(), ...(o.free ? { free: true } : {}) }));
+    const opts = draft.map(o => ({ t: o.t.trim(), w: weightOf(o),
+                                   ...(o.free ? { free: true } : {}) }));
     if(opts.length < 2 || opts.length > 8 || opts.some(o => !o.t)) return;
     if(opts.every(o => o.free) &&
        !confirm("Every segment is a free pass — nobody will ever drink. Save anyway?")) return;
