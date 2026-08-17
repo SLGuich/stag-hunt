@@ -125,6 +125,18 @@
   .sheet h2{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
   .sheet p{color:var(--dim);margin:0 0 20px;font-size:14px}
 
+  /* wheel segment editor */
+  .seg{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .seg input{margin:0;flex:1;padding:12px}
+  .seg .free{min-width:70px;min-height:48px;border-radius:10px;font-size:12px;
+    font-weight:700;letter-spacing:.04em;border:1px solid var(--line);color:var(--dim)}
+  .seg .free.on{border-color:var(--green);color:#8ee79f;background:rgba(26,158,60,.14)}
+  .seg .del{width:46px;min-height:48px;border-radius:10px;border:1px solid var(--line);
+    color:#ff9aa0;font-size:20px;line-height:1}
+  .seg .del[disabled]{opacity:.3}
+  .wpreview{display:block;margin:2px auto 12px}
+  .wnote{font-size:12px;color:var(--dim);margin:0 0 10px}
+
   input,select,textarea{
     width:100%;padding:14px;background:#0e0e12;color:var(--ink);
     border:1px solid var(--line);border-radius:12px;font:inherit;margin-bottom:10px;
@@ -870,6 +882,117 @@ function renderOver(){
     </div>`);
 }
 
+/* ==================================================== wheel editor ====== */
+/* Draft lives outside the render so the 6s admin poll can't wipe a
+   half-composed wheel. null = in sync with the server. */
+let wheelDraft = null;
+
+const cleanOpts = o => (o || []).map(x => ({ t: x.t || "", free: !!x.free }));
+const sameOpts  = (a, b) => JSON.stringify(cleanOpts(a)) === JSON.stringify(cleanOpts(b));
+
+function wheelPreviewHTML(opts){
+  const r = 60, seg = 360 / Math.max(1, opts.length);
+  const arc = opts.map((o, i) => {
+    const a0 = (i * seg - seg/2 - 90) * Math.PI / 180;
+    const a1 = (i * seg + seg/2 - 90) * Math.PI / 180;
+    return `<path d="M0 0 L${(Math.cos(a0)*r).toFixed(1)} ${(Math.sin(a0)*r).toFixed(1)}
+              A${r} ${r} 0 ${seg > 180 ? 1 : 0} 1
+              ${(Math.cos(a1)*r).toFixed(1)} ${(Math.sin(a1)*r).toFixed(1)} Z"
+            fill="${o.free ? "rgba(26,158,60,.5)"
+                           : `rgba(255,255,255,${i % 2 ? ".24" : ".13"})`}"
+            stroke="#0a0a0c" stroke-width=".7"/>`;
+  }).join("");
+  const labels = opts.map((o, i) => {
+    const txt = (o.t || "?").toUpperCase();
+    return `<text transform="rotate(${i * seg}) translate(0 -${r * 0.60})"
+              text-anchor="middle" font-size="6.5" font-weight="700"
+              fill="${o.free ? "#8ee79f" : "#fff"}">${esc(txt.slice(0, 13))}</text>`;
+  }).join("");
+  return `<svg id="wpreview" class="wpreview" width="160" height="160" viewBox="-70 -70 140 140">
+    <polygon points="-6,-68 6,-68 0,-56" fill="var(--amber)"/>
+    ${arc}${labels}<circle r="15" fill="#0a0a0c"/>
+  </svg>`;
+}
+
+function wheelEditorHTML(g){
+  const draft = wheelDraft || cleanOpts(g.wheel_options);
+  const dirty = !sameOpts(draft, g.wheel_options);
+  const blank = draft.some(o => !o.t.trim());
+  const freeN = draft.filter(o => o.free).length;
+  return `
+    ${wheelPreviewHTML(draft)}
+    <p class="wnote">${draft.length} segments · ${freeN} free pass${freeN === 1 ? "" : "es"}
+      · each has an equal 1-in-${draft.length} chance. Free passes owe no photo.</p>
+    ${draft.map((o, i) => `
+      <div class="seg">
+        <input data-segtext="${i}" value="${esc(o.t)}" maxlength="24"
+               placeholder="segment ${i + 1}" spellcheck="false">
+        <button class="free ${o.free ? "on" : ""}" data-segfree="${i}"
+                title="free pass — nobody drinks">FREE</button>
+        <button class="del" data-segdel="${i}" ${draft.length <= 2 ? "disabled" : ""}
+                title="remove">×</button>
+      </div>`).join("")}
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
+              id="segadd" ${draft.length >= 8 ? "disabled" : ""}>+ Add segment</button>
+      <button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
+              id="segrevert" ${dirty ? "" : "disabled"}>Revert</button>
+    </div>
+    <button class="btn" style="text-align:center;font-weight:700;
+      background:${dirty && !blank ? "var(--amber)" : "transparent"};
+      color:${dirty && !blank ? "#241d00" : "var(--dim)"};
+      border:1px solid ${dirty && !blank ? "var(--amber)" : "var(--line)"}"
+      id="savewheel" ${dirty && !blank ? "" : "disabled"}>
+      ${blank ? "Every segment needs a name"
+              : dirty ? "Save wheel — " + draft.length + " segments"
+              : "Saved"}</button>`;
+}
+
+function wireWheelEditor(g){
+  const draft = wheelDraft || cleanOpts(g.wheel_options);
+  const touch = () => { wheelDraft = draft; renderAdmin(); };
+
+  el.querySelectorAll("[data-segtext]").forEach(inp => {
+    inp.oninput = () => {
+      draft[+inp.dataset.segtext].t = inp.value;
+      wheelDraft = draft;
+      // repaint preview + save button in place — a full re-render would
+      // steal focus mid-word
+      const pv = document.getElementById("wpreview");
+      if(pv) pv.outerHTML = wheelPreviewHTML(draft);
+      const save = document.getElementById("savewheel");
+      const ok = !sameOpts(draft, g.wheel_options) && !draft.some(o => !o.t.trim());
+      if(save){
+        save.disabled = !ok;
+        save.textContent = draft.some(o => !o.t.trim()) ? "Every segment needs a name"
+                         : ok ? "Save wheel — " + draft.length + " segments" : "Saved";
+        save.style.background = ok ? "var(--amber)" : "transparent";
+        save.style.color = ok ? "#241d00" : "var(--dim)";
+        save.style.borderColor = ok ? "var(--amber)" : "var(--line)";
+      }
+    };
+  });
+  el.querySelectorAll("[data-segfree]").forEach(b => b.onclick = () => {
+    const i = +b.dataset.segfree; draft[i].free = !draft[i].free; touch();
+  });
+  el.querySelectorAll("[data-segdel]").forEach(b => b.onclick = () => {
+    draft.splice(+b.dataset.segdel, 1); touch();
+  });
+  const add = document.getElementById("segadd");
+  if(add) add.onclick = () => { draft.push({ t: "", free: false }); touch(); };
+  const rev = document.getElementById("segrevert");
+  if(rev) rev.onclick = () => { wheelDraft = null; renderAdmin(); };
+  const save = document.getElementById("savewheel");
+  if(save) save.onclick = () => {
+    const opts = draft.map(o => ({ t: o.t.trim(), ...(o.free ? { free: true } : {}) }));
+    if(opts.length < 2 || opts.length > 8 || opts.some(o => !o.t)) return;
+    if(opts.every(o => o.free) &&
+       !confirm("Every segment is a free pass — nobody will ever drink. Save anyway?")) return;
+    wheelDraft = null;
+    adminCall("set_wheel_options", JSON.stringify(opts));
+  };
+}
+
 /* ============================================================== admin === */
 async function adminCall(action, value){
   try{
@@ -896,7 +1019,8 @@ function renderAdmin(){
   const bans  = admin.bananas || [];
   // Preserve half-composed controls across the background re-render.
   const keep = {};
-  ["rigteam", "rigdrink", "rigcount", "newpass", "wheelopts"].forEach(id => {
+  const scrollY = window.scrollY;
+  ["rigteam", "rigdrink", "rigcount", "newpass"].forEach(id => {
     const n = document.getElementById(id);
     if(n) keep[id] = n.value;
   });
@@ -971,12 +1095,8 @@ function renderAdmin(){
       ${g.wheel_enabled ? "ON — tap to disable" : "OFF — tap to enable"}
     </button>
 
-    <label>Wheel segments (one per line · end with * for a free pass · 2–8)</label>
-    <textarea id="wheelopts" rows="6" spellcheck="false">${
-      esc((g.wheel_options || []).map(o => o.t + (o.free ? " *" : "")).join("\n"))
-    }</textarea>
-    <button class="btn ghost" style="text-align:center;border-color:var(--amber);color:#f0d98a"
-            id="savewheel">Save wheel segments</button>
+    <label>Wheel segments</label>
+    ${wheelEditorHTML(g)}
 
     <label>Reveal rivals' bars to everyone</label>
     <button class="btn ghost" style="text-align:center" id="rivals">
@@ -1042,6 +1162,7 @@ function renderAdmin(){
     const n = document.getElementById(id);
     if(n && v) n.value = v;
   });
+  if(scrollY) window.scrollTo(0, scrollY);   // editing controls sit far down the page
 
   mountMap("amap", TEAMS.map(t => ({
     team: t, color: TEAM_COLOR[t],
@@ -1062,20 +1183,7 @@ function renderAdmin(){
     adminCall("set_hint_after", String(n));
   };
   document.getElementById("wheel").onclick  = () => adminCall("set_wheel", g.wheel_enabled ? "false" : "true");
-  document.getElementById("savewheel").onclick = () => {
-    const lines = document.getElementById("wheelopts").value
-      .split("\n").map(s => s.trim()).filter(Boolean);
-    if(lines.length < 2 || lines.length > 8){
-      alert("Between 2 and 8 segments, one per line."); return;
-    }
-    const opts = lines.map(s => {
-      const free = /\*\s*$/.test(s);
-      return { t: s.replace(/\*\s*$/, "").trim(), ...(free ? { free: true } : {}) };
-    });
-    if(opts.some(o => !o.t)){ alert("A segment has no text."); return; }
-    if(!confirm("Replace the wheel with " + opts.length + " segments? Teams mid-forfeit keep their dealt result.")) return;
-    adminCall("set_wheel_options", JSON.stringify(opts));
-  };
+  wireWheelEditor(g);
   document.getElementById("rivals").onclick = () => adminCall("set_rivals", g.show_rivals ? "false" : "true");
   el.querySelectorAll("[data-unlock]").forEach(b =>
     b.onclick = () => adminCall("unlock", b.dataset.unlock));
