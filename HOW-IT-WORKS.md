@@ -154,6 +154,22 @@ Edits apply to *future* spins only. A team mid-forfeit keeps the result they
 were already dealt — the wheel can't be used to retroactively change a round
 someone is already drinking.
 
+### A different wheel per pub
+The **Which wheel** dropdown at the top of the Wheel tab picks what you're
+editing: the **default wheel** (used everywhere) or a **single pub**. Choose a
+pub, adjust its segments to whatever that place actually serves — Becherovka
+at Bar Bohužel, a cocktail list at Theatrino — and save. Pubs with their own
+wheel are marked ★ in the dropdown.
+
+Selecting a pub with no override starts from a copy of the default, so you're
+always editing something sensible. **Remove override** puts a pub back on the
+default wheel.
+
+Rigs follow the *name* of the segment you chose, so rigging "Shots" still
+lands on Shots at a pub whose custom wheel lists them in a different order. If
+that pub's wheel has no matching segment, the rig is dropped and the spin is
+fair.
+
 ### 🎯 Rigging a spin
 Pick a team, an outcome, and a drink count, then **Rig it**. Their *next wrong
 guess* lands on exactly that, with the wheel spinning convincingly on the way.

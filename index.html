@@ -423,14 +423,22 @@ function drinkLabel(t){
   return [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
 }
 let DRINKS = [];
-function setWheelOptions(opts){
-  if(!Array.isArray(opts) || opts.length < 2) opts = DEFAULT_WHEEL;
-  DRINKS = opts.map(o => ({ label: drinkLabel(o.t), text: String(o.t).toUpperCase(),
-                            free: !!o.free, w: weightOf(o) }));
-}
+function setWheelOptions(opts){ DRINKS = toDrinks(opts); }
 function weightOf(o){
   const w = Number(o && o.w);
   return isFinite(w) && w > 0 ? w : 1;
+}
+/* Normalise a raw option array into drawable segments. */
+function toDrinks(opts){
+  return (Array.isArray(opts) && opts.length >= 2 ? opts : DEFAULT_WHEEL)
+    .map(o => ({ label: drinkLabel(o.t), text: String(o.t).toUpperCase(),
+                 free: !!o.free, w: weightOf(o) }));
+}
+/* The wheel a given guess was judged against — stamped on the row, so a pub's
+   wheel can be re-tuned later without rewriting forfeits already dealt. */
+function drinksFor(g){
+  return (g && Array.isArray(g.rig_opts) && g.rig_opts.length >= 2)
+    ? toDrinks(g.rig_opts) : DRINKS;
 }
 /* Segments are sized by weight, so a 50% slice really is half the wheel.
    Returns each segment's start/mid/end angle in degrees clockwise from top. */
@@ -474,7 +482,8 @@ function forfeitText(f, mult){
    has changed since the stamp — skip the animation, show the result plain. */
 function forfeitOf(teamName, g){
   if(g.rig_d != null){
-    const cur  = DRINKS[g.rig_d];
+    const list = drinksFor(g);
+    const cur  = list[g.rig_d];
     const text = (g.rig_t || (cur && cur.text) || "MYSTERY ROUND").toUpperCase();
     const free = g.rig_f != null ? !!g.rig_f : !!(cur && cur.free);
     const cfgMatch = !!cur && (!g.rig_t || cur.text === text);
@@ -482,21 +491,22 @@ function forfeitOf(teamName, g){
     const s = teamName + "|" + g.bar;
     for(let i = 0; i < s.length; i++){ x = Math.imul(x ^ s.charCodeAt(i), 16777619) >>> 0; }
     // land anywhere inside the segment — narrow slices need a smaller wobble
-    const geo  = cfgMatch ? segGeometry()[g.rig_d] : { mid: 0, span: 360 };
+    const geo  = cfgMatch ? segGeometry(list)[g.rig_d] : { mid: 0, span: 360 };
     const room = Math.max(0, Math.min(18, geo.span / 2 - 3));
     const jitter = room ? (x % (2 * room * 10)) / 10 - room : 0;
-    return { count: g.rig_c || 1, drink: { text }, free, cfgMatch,
+    return { count: g.rig_c || 1, drink: { text }, free, cfgMatch, list,
              rotation: 5 * 360 - geo.mid + jitter };
   }
   const f = forfeitFor(teamName, g.bar);
-  f.cfgMatch = true;
+  f.cfgMatch = true; f.list = DRINKS;
   return f;
 }
 
 function wheelHTML(f, spun, mult){
   const r = 140;
-  const geo = segGeometry();
-  const segs = DRINKS.map((d, i) => {
+  const list = (f && f.list) || DRINKS;
+  const geo = segGeometry(list);
+  const segs = list.map((d, i) => {
     const gm = geo[i];
     const a0 = (gm.start - 90) * Math.PI / 180, a1 = (gm.end - 90) * Math.PI / 180;
     // a slice too thin for two lines gets one; too thin for any gets none
@@ -1009,6 +1019,7 @@ function renderOver(){
 /* Draft lives outside the render so the 6s admin poll can't wipe a
    half-composed wheel. null = in sync with the server. */
 let wheelDraft = null;
+let wheelScope = "";      // "" = default wheel, otherwise a pub name
 
 const cleanOpts = o => (o || []).map(x => ({ t: x.t || "", free: !!x.free, w: weightOf(x) }));
 const sameOpts  = (a, b) => JSON.stringify(cleanOpts(a)) === JSON.stringify(cleanOpts(b));
@@ -1039,9 +1050,40 @@ function wheelPreviewHTML(opts){
   </svg>`;
 }
 
+/* Which wheel the editor is pointed at: "" = the game-wide default, or a pub
+   name for that pub's override. */
+function scopeBase(g){
+  if(!wheelScope) return g.wheel_options;
+  const pw = (admin && admin.pub_wheels) || {};
+  return pw[wheelScope] || g.wheel_options;      // seed a new override from the default
+}
+function scopeHasOverride(){
+  const pw = (admin && admin.pub_wheels) || {};
+  return !!(wheelScope && pw[wheelScope]);
+}
+
+function wheelScopeHTML(g){
+  const pw = (admin && admin.pub_wheels) || {};
+  const n = Object.keys(pw).length;
+  return `
+    <select id="wscope">
+      <option value="" ${wheelScope === "" ? "selected" : ""}>Default wheel — every pub</option>
+      ${BARS.map(b => `<option value="${esc(b.n)}" ${wheelScope === b.n ? "selected" : ""}>
+        ${pw[b.n] ? "★ " : ""}${esc(b.n)}${pw[b.n] ? " (custom)" : ""}</option>`).join("")}
+    </select>
+    <p class="wnote">${wheelScope
+      ? (scopeHasOverride()
+          ? "This pub has its own wheel. Teams guessing here spin this one."
+          : "Editing a copy of the default — save to give this pub its own wheel.")
+      : n
+        ? n + " pub" + (n === 1 ? "" : "s") + " override this: " +
+          Object.keys(pw).map(esc).join(", ")
+        : "Used at every pub. Pick a pub above to tailor one to its menu."}</p>`;
+}
+
 function wheelEditorHTML(g){
-  const draft = wheelDraft || cleanOpts(g.wheel_options);
-  const dirty = !sameOpts(draft, g.wheel_options);
+  const draft = wheelDraft || cleanOpts(scopeBase(g));
+  const dirty = !sameOpts(draft, scopeBase(g)) || (wheelScope && !scopeHasOverride());
   const blank = draft.some(o => !o.t.trim());
   const freeN = draft.filter(o => o.free).length;
   const total = draft.reduce((s, o) => s + weightOf(o), 0);
@@ -1075,13 +1117,17 @@ function wheelEditorHTML(g){
       <button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
               id="segrevert" ${dirty ? "" : "disabled"}>Revert</button>
     </div>
+    ${scopeHasOverride() ? `<button class="btn ghost" style="text-align:center;
+        border-color:var(--red);color:#ff9aa0" id="segdrop">
+        Remove override — use the default wheel here</button>` : ""}
     <button class="btn" style="text-align:center;font-weight:700;
       background:${dirty && !blank ? "var(--amber)" : "transparent"};
       color:${dirty && !blank ? "#241d00" : "var(--dim)"};
       border:1px solid ${dirty && !blank ? "var(--amber)" : "var(--line)"}"
       id="savewheel" ${dirty && !blank ? "" : "disabled"}>
       ${blank ? "Every segment needs a name"
-              : dirty ? "Save wheel — " + draft.length + " segments"
+              : dirty ? (wheelScope ? "Save wheel for " + esc(wheelScope)
+                                    : "Save default wheel — " + draft.length + " segments")
               : "Saved"}</button>`;
 }
 
@@ -1089,18 +1135,33 @@ function syncSaveBtn(draft, g){
   const save = document.getElementById("savewheel");
   if(!save) return;
   const blank = draft.some(o => !o.t.trim());
-  const ok = !sameOpts(draft, g.wheel_options) && !blank;
+  const ok = (!sameOpts(draft, scopeBase(g)) || (wheelScope && !scopeHasOverride())) && !blank;
   save.disabled = !ok;
   save.textContent = blank ? "Every segment needs a name"
-                   : ok ? "Save wheel — " + draft.length + " segments" : "Saved";
+                   : ok ? (wheelScope ? "Save wheel for " + wheelScope
+                                      : "Save default wheel — " + draft.length + " segments")
+                   : "Saved";
   save.style.background  = ok ? "var(--amber)" : "transparent";
   save.style.color       = ok ? "#241d00" : "var(--dim)";
   save.style.borderColor = ok ? "var(--amber)" : "var(--line)";
 }
 
 function wireWheelEditor(g){
-  const draft = wheelDraft || cleanOpts(g.wheel_options);
+  const draft = wheelDraft || cleanOpts(scopeBase(g));
   const touch = () => { wheelDraft = draft; renderAdmin(); };
+
+  const sc = document.getElementById("wscope");
+  if(sc) sc.onchange = e => {
+    if(wheelDraft && !sameOpts(wheelDraft, scopeBase(g)) &&
+       !confirm("Discard unsaved changes to this wheel?")){ e.target.value = wheelScope; return; }
+    wheelScope = e.target.value; wheelDraft = null; renderAdmin();
+  };
+  const drop = document.getElementById("segdrop");
+  if(drop) drop.onclick = () => {
+    if(!confirm(wheelScope + " will go back to the default wheel. Remove its override?")) return;
+    wheelDraft = null;
+    adminCall("clear_pub_wheel", wheelScope);
+  };
 
   el.querySelectorAll("[data-segtext]").forEach(inp => {
     inp.oninput = () => {
@@ -1159,7 +1220,8 @@ function wireWheelEditor(g){
     if(opts.every(o => o.free) &&
        !confirm("Every segment is a free pass — nobody will ever drink. Save anyway?")) return;
     wheelDraft = null;
-    adminCall("set_wheel_options", JSON.stringify(opts));
+    if(wheelScope) adminCall("set_pub_wheel", wheelScope + "|" + JSON.stringify(opts));
+    else           adminCall("set_wheel_options", JSON.stringify(opts));
   };
 }
 
@@ -1190,7 +1252,7 @@ function renderAdmin(){
   // Preserve half-composed controls across the background re-render.
   const keep = {};
   const scrollY = window.scrollY;
-  ["rigteam", "rigdrink", "rigcount", "newpass"].forEach(id => {
+  ["rigteam", "rigdrink", "rigcount", "newpass", "wscope"].forEach(id => {
     const n = document.getElementById(id);
     if(n) keep[id] = n.value;
   });
@@ -1305,6 +1367,9 @@ function renderAdmin(){
     </button>
     ${!g.wheel_enabled ? `<p class="wnote">With the wheel off, wrong guesses cost only time
       and no proof photos are required.</p>` : ""}
+
+    <label>Which wheel</label>
+    ${wheelScopeHTML(g)}
 
     <label>Segments &amp; odds</label>
     ${wheelEditorHTML(g)}
