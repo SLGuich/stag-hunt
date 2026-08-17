@@ -222,6 +222,17 @@ const BARS = [
   { n:"Hemingway Bar",       a:"Karoliny Světlé 26",   img:"bars/hemingway.jpg",    lat:50.08400, lon:14.41427 },
   { n:"Konvikt Pub",         a:"Bartolomějská 11",     img:"bars/konvikt.jpg",      lat:50.08304, lon:14.41747 },
   { n:"Bugsy's Bar",        a:"Pařížská 10",          img:"bars/bugsys.jpg",       lat:50.08880, lon:14.41999 },
+  { n:"Chapeau Rouge",       a:"Jakubská 2",           img:"bars/chapeau.jpg",      lat:50.08804, lon:14.42463 },
+  { n:"Harley's Bar",       a:"Dlouhá 18",            img:"bars/harleys.jpg",      lat:50.08969, lon:14.42351 },
+  { n:"M1 Lounge",           a:"Masná 1",              img:"bars/m1.jpg",           lat:50.08943, lon:14.42314 },
+  { n:"Bar and Books",       a:"Týnská 19",            img:"bars/bar-and-books.jpg",lat:50.08873, lon:14.42367 },
+  { n:"U Parlamentu",        a:"Valentinská 8",        img:"bars/parlamentu.jpg",   lat:50.08826, lon:14.41659 },
+  { n:"Krčma",               a:"Kostečná 4",           img:"bars/krcma.jpg",        lat:50.08905, lon:14.42024 },
+  { n:"La Bodeguita",        a:"Kaprova 5",            img:"bars/bodeguita.jpg",    lat:50.08846, lon:14.41714 },
+  { n:"Klub Lávka",          a:"Novotného lávka 1",    img:"bars/lavka.jpg",        lat:50.08544, lon:14.41299 },
+  { n:"Duende",              a:"Karoliny Světlé 30",   img:"bars/duende.jpg",       lat:50.08422, lon:14.41423 },
+  { n:"Vzorkovna",           a:"Národní 11",           img:"bars/vzorkovna.jpg",    lat:50.08173, lon:14.41612 },
+  { n:"U Fleků",             a:"Křemencova 11",        img:"bars/u-fleku.jpg",      lat:50.07890, lon:14.41698 },
 ];
 function mapsUrl(b){
   const addr = b.a.split("·")[0].trim();
@@ -1383,7 +1394,7 @@ function renderAdmin(){
     <input id="hint" value="${esc(g.hint_text || "")}" placeholder="e.g. He's on Dlouhá.">
 
     <label>Show hint after N wrong guesses</label>
-    <input id="hintafter" type="number" min="1" max="17" value="${g.hint_after}">
+    <input id="hintafter" type="number" min="1" max="28" value="${g.hint_after}">
 
     <label>Reveal rivals' bars to everyone</label>
     <button class="btn ghost" style="text-align:center" id="rivals">

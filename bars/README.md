@@ -24,3 +24,14 @@ Staré Město / Josefov, Praha 1:
 - hemingway.jpg      — Hemingway Bar, Karoliny Světlé 26
 - konvikt.jpg        — Konvikt Pub, Bartolomějská 11
 - bugsys.jpg         — Bugsy's Bar, Pařížská 10
+- chapeau.jpg        — Chapeau Rouge, Jakubská 2
+- harleys.jpg        — Harley's Bar, Dlouhá 18
+- m1.jpg             — M1 Lounge, Masná 1
+- bar-and-books.jpg  — Bar and Books, Týnská 19
+- parlamentu.jpg     — U Parlamentu, Valentinská 8
+- krcma.jpg          — Krčma, Kostečná 4
+- bodeguita.jpg      — La Bodeguita, Kaprova 5
+- lavka.jpg          — Klub Lávka, Novotného lávka 1
+- duende.jpg         — Duende, Karoliny Světlé 30
+- vzorkovna.jpg      — Vzorkovna, Národní 11 (cash only)
+- u-fleku.jpg        — U Fleků, Křemencova 11 (furthest, ~12 min walk)

@@ -3,9 +3,15 @@
 **Play here:** https://slguich.github.io/stag-hunt/
 **Organiser's control room:** https://slguich.github.io/stag-hunt/#admin
 
-15 people · 3 teams of 5 · 18 pubs · one of them has a table reserved.
+15 people · 3 teams of 5 · 29 pubs · one of them has a table reserved.
 
-All pubs are in **Staré Město / Josefov (Prague 1)**, within about 800m.
+All pubs are in **Staré Město / Josefov (Prague 1)**, nearly all within about
+800m of each other (U Fleků is the one outlier, ~12 min walk).
+
+> **With 29 pubs, nobody is likely to stumble on the reserved table by luck.**
+> That is fine — the game is scored on points, and covering ground is worth
+> real points — but if you want the table actually *found*, lean on the hint:
+> set it to reveal after 3–4 wrong guesses and name the street.
 
 ---
 
@@ -34,7 +40,7 @@ All five phones on a team share one game. If one person guesses, everyone on
 that team sees the result within a few seconds.
 
 ### Guessing
-The list shows all 18 pubs. Tap the one you are physically standing in, then
+The list shows all 29 pubs. Tap the one you are physically standing in, then
 confirm. **You get one shot at each pub** — once your team has tried it, it's
 struck off your list for good.
 
@@ -159,8 +165,8 @@ someone is already drinking.
 ### A different wheel per pub
 The **Which wheel** dropdown at the top of the Wheel tab picks what you're
 editing: the **default wheel** (used everywhere) or a **single pub**. Choose a
-pub, adjust its segments to whatever that place actually serves — Becherovka
-Pilsner at U Zlatého tygra, a cocktail list at Hemingway — and save. Pubs with their own
+pub, adjust its segments to whatever that place actually serves — Pilsner at
+U Zlatého tygra, a cocktail list at Hemingway — and save. Pubs with their own
 wheel are marked ★ in the dropdown.
 
 Selecting a pub with no override starts from a copy of the default, so you're
@@ -237,6 +243,17 @@ All within about 10 minutes' walk of each other, all fine for a one-drink stop.
 | Hemingway Bar | Karoliny Světlé 26 *(small, may need booking)* |
 | Konvikt Pub | Bartolomějská 11 |
 | Bugsy's Bar | Pařížská 10 |
+| Chapeau Rouge | Jakubská 2 |
+| Harley's Bar | Dlouhá 18 |
+| M1 Lounge | Masná 1 |
+| Bar and Books | Týnská 19 |
+| U Parlamentu | Valentinská 8 |
+| Krčma | Kostečná 4 |
+| La Bodeguita | Kaprova 5 |
+| Klub Lávka | Novotného lávka 1 |
+| Duende | Karoliny Světlé 30 |
+| Vzorkovna | Národní 11 *(cash only)* |
+| U Fleků | Křemencova 11 *(furthest — about 12 min walk)* |
 
 Every pub row has a 📍 button that opens it in Google Maps.
 
