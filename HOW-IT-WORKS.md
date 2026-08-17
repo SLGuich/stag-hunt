@@ -1,15 +1,17 @@
-# Find the Groom — Žižkov, Friday 21 August 2026
+# Find the Groom — Old Town Prague, Friday 21 August 2026
 
 **Play here:** https://slguich.github.io/stag-hunt/
 **Organiser's control room:** https://slguich.github.io/stag-hunt/#admin
 
 15 people · 3 teams of 5 · 18 pubs · one of them has a table reserved.
 
+All pubs are in **Staré Město / Josefov (Prague 1)**, within about 800m.
+
 ---
 
 ## The short version (read this one out loud)
 
-> One pub in Žižkov has a table booked in Tom's name. Nobody's sitting in it —
+> One pub in Old Town has a table booked in Tom's name. Nobody's sitting in it —
 > you have to find it.
 >
 > Walk to a pub, open the app, tap the pub you're standing in. If it's the
@@ -158,7 +160,7 @@ someone is already drinking.
 The **Which wheel** dropdown at the top of the Wheel tab picks what you're
 editing: the **default wheel** (used everywhere) or a **single pub**. Choose a
 pub, adjust its segments to whatever that place actually serves — Becherovka
-at Bar Bohužel, a cocktail list at Theatrino — and save. Pubs with their own
+Pilsner at U Zlatého tygra, a cocktail list at Hemingway — and save. Pubs with their own
 wheel are marked ★ in the dropdown.
 
 Selecting a pub with no override starts from a copy of the default, so you're
@@ -192,7 +194,7 @@ finish: around 23:00, everyone converges on the reserved table.
 
 ## Practical notes
 
-**Signal.** Žižkov cellars kill mobile data. The app handles it: guesses can
+**Signal.** Old Town cellar bars kill mobile data. The app handles it: guesses can
 never be lost or double-counted, a failed send offers a safe retry, and the
 screen tells you when it's showing stale data. If a phone seems stuck, walk
 toward the door or pull down to refresh.
@@ -200,9 +202,11 @@ toward the door or pull down to refresh.
 **Anyone can play from any phone** — five phones per team all show the same
 state. If one person's battery dies, the team carries on.
 
-**Closing times.** Pivoteka Žižkoff shuts at 22:00 and SMÄD at midnight; the
-admin screen flags them if you pick one as the target. Start early enough and
-it won't matter.
+**Busy pubs.** Old Town on a Friday night is much busier than Žižkov. The
+admin screen flags three when you pick them as the target: U Zlatého tygra
+(tiny locals' pub), Black Angel's (cellar, queues) and Hemingway Bar (small,
+often needs a booking). They're all fine to *visit* — just risky as the
+reserved-table pub. Book the table somewhere with room.
 
 **Photos** are compressed on the phone before upload, so they go through on bad
 signal and won't eat anyone's data.
@@ -211,28 +215,28 @@ signal and won't eat anyone's data.
 
 ## The pubs
 
-All within about 15 minutes' walk of each other, all fine for a one-drink stop.
+All within about 10 minutes' walk of each other, all fine for a one-drink stop.
 
 | Pub | Address |
 |---|---|
-| U Sadu | Škroupovo nám. 5 |
-| Áčko Žižkov | Bořivojova 98 |
-| Bukowski's Bar | Bořivojova 86 |
-| Woodoo | Bořivojova 69 |
-| Bar Bohužel | Bořivojova 61 *(cash only)* |
-| Theatrino Cocktail Bar | Bořivojova 53 |
-| Maverick's Irish pub | Žižkov 204 |
-| SMÄD craft beer bar | Táboritská 10 *(closes midnight)* |
-| Pivoteka Žižkoff | Milíčova 6 *(closes 22:00)* |
-| Pub a Bar Na Plech | Bořivojova 503 |
-| Tiki Taky Bar | Seifertova 20 |
-| Vlkova 26 | Vlkova 26 |
-| U Vystřelenýho oka | U Božích bojovníků 3 |
-| U Slovanské lípy | Hartigova 26 |
-| Café Pavlač | Víta Nejedlého 23 |
-| Hospůdka Nad Viktorkou | Bořivojova 79 |
-| Sedm vlků | Vlkova 7 |
-| U Vodoucha | Jagellonská 21 |
+| U Zlatého tygra | Husova 17 *(tiny, often full)* |
+| U Tří růží | Husova 10 |
+| U Medvídků | Na Perštýně 7 |
+| U Vejvodů | Jilská 4 |
+| AnonymouS Bar | Michalská 12 |
+| Black Angel's Bar | Staroměstské nám. 29 *(cellar, can queue)* |
+| U Dvou koček | Uhelný trh 10 |
+| U Provaznice | Provaznická 3 |
+| Pivnice Radegast | Templová 2 |
+| Lokál Dlouhá | Dlouhá 33 |
+| Prague Beer Museum | Dlouhá 46 |
+| Kolkovna | V Kolkovně 8 |
+| James Dean | V Kolkovně 1 |
+| Pivnice U Pivrnce | Maiselova 3 |
+| U Rudolfina | Křižovnická 10 |
+| Hemingway Bar | Karoliny Světlé 26 *(small, may need booking)* |
+| Konvikt Pub | Bartolomějská 11 |
+| Bugsy's Bar | Pařížská 10 |
 
 Every pub row has a 📍 button that opens it in Google Maps.
 
