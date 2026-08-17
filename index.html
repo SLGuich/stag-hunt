@@ -85,9 +85,18 @@
   .usedrow .info .name{font-size:19px;font-weight:600;text-decoration:line-through}
   .usedrow .info.found .name{text-decoration:none;color:#8ee79f}
   .usedrow .info .addr{font-size:13px;color:var(--dim);margin-top:2px}
-  .usedrow .trap{min-width:74px;min-height:46px;border:1px solid var(--amber);border-radius:10px;
-    font-size:15px;font-weight:600;color:#f0d98a;background:rgba(201,162,39,.10)}
-  .usedrow .placed{font-size:24px}
+  .usedrow .trap{min-width:60px;min-height:46px;border:1px solid var(--amber);border-radius:10px;
+    font-size:14px;font-weight:600;color:#f0d98a;background:rgba(201,162,39,.10)}
+  .usedrow .placed{font-size:22px}
+  /* per-pub proof: thumbnail when uploaded, outlined camera when missing */
+  .proofthumb{width:48px;height:48px;border-radius:10px;padding:0;flex:none;
+    border:1px solid var(--green);overflow:hidden;background:none}
+  .proofthumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .proofadd{width:48px;height:48px;border-radius:10px;flex:none;font-size:18px;
+    border:1px dashed var(--red);color:#ff9aa0;background:rgba(224,27,36,.10)}
+
+  .bigshot{width:100%;max-height:46vh;object-fit:contain;border-radius:12px;
+    background:#000;display:block;margin-bottom:14px}
 
   /* full-screen result states */
   .full{
@@ -128,6 +137,14 @@
     border-top:1px solid var(--line)}
   .sheet h2{font-size:22px;margin:0 0 6px;letter-spacing:-.01em}
   .sheet p{color:var(--dim);margin:0 0 20px;font-size:14px}
+
+  /* admin tabs — sticky so they stay reachable one-handed */
+  .tabs{position:sticky;top:0;z-index:20;display:flex;gap:6px;background:var(--bg);
+    padding:8px 0 10px;margin-bottom:4px}
+  .tabs button{flex:1;min-height:46px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);color:var(--dim);font-size:13px;font-weight:700;letter-spacing:.02em}
+  .tabs button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .tabs button .dot{color:var(--red);font-size:16px;line-height:0}
 
   /* wheel segment editor */
   .seg{background:var(--panel);border:1px solid var(--line);border-radius:12px;
@@ -279,6 +296,7 @@ let state       = null;
 let clockSkew   = 0;              // serverNow - deviceNow, ms
 let pending     = null;           // bar object awaiting guess confirmation
 let bananaPending = null;         // bar name awaiting banana confirmation
+let photoSheet  = null;           // bar name whose proof photo is open
 let sheetArmedAt = 0;             // when the current sheet was opened
 let sending     = false;
 let uploading   = false;
@@ -288,6 +306,7 @@ let notice      = null;           // one-off message (e.g. "didn't count")
 let offline     = false;
 let admin       = null;
 let adminPass   = "";
+let adminTab    = "game";         // game | teams | wheel | feed
 let lastSig     = "";
 let refreshId   = 0;              // ignore out-of-order poll responses
 const spunMem   = new Set();      // in-memory mirror of the spun flags
@@ -339,7 +358,7 @@ async function refresh(){
     if(id !== refreshId) return;
     offline = true;
   }
-  if(spinning || uploading) return;           // never interrupt those
+  if(spinning || uploading || pickerOpen) return;   // never interrupt those
   const sig = JSON.stringify([state ? { ...state, server_now: 0 } : null, offline, team]);
   if(sig !== lastSig){ lastSig = sig; render(); }
 }
@@ -381,6 +400,13 @@ function mmss(ms){
   return String(Math.floor(s / 60)).padStart(2,"0") + ":" + String(s % 60).padStart(2,"0");
 }
 function buzz(pattern){ try{ navigator.vibrate && navigator.vibrate(pattern); }catch(e){} }
+
+/* While the OS camera/gallery picker is up, a re-render would swap out the
+   file input and the chosen photo would never arrive. Freeze repaints until
+   the picker resolves (change fires, or we regain focus after a cancel). */
+let pickerOpen = false;
+function openPicker(fi){ pickerOpen = true; fi.click(); }
+window.addEventListener("focus", () => { setTimeout(() => { pickerOpen = false; }, 600); });
 
 /* =========================================================== forfeit ==== */
 /* Outcome is a pure hash of team+bar: every phone lands on the same result,
@@ -639,6 +665,7 @@ function render(){
   // Sheets are drawn BY render, so a re-render can never orphan them.
   if(pending)       attachGuessSheet();
   if(bananaPending) attachBananaSheet();
+  if(photoSheet)    attachPhotoSheet();
 }
 
 function renderConnecting(){
@@ -723,15 +750,23 @@ function renderGuessList(){
       const g = gs.find(x => x.bar === b.n);
       if(g){
         const isTarget = g.correct;
+        const wf = (!isTarget && state.wheel !== false && g.rig_d != null)
+                   ? forfeitOf(team, g) : null;
+        const owed = wf && !wf.free;
         return `<div class="usedrow">
           ${b.img ? `<img class="thumb" src="${b.img}" alt="" loading="lazy"
              style="opacity:${isTarget ? 1 : .38}" onerror="this.remove()">` : ""}
           <div class="info ${isTarget ? "found" : ""}">
             <div class="name">${esc(b.n)}${isTarget ? " ✓" : ""}</div>
-            <div class="addr">${esc(b.a)}${g.photo ? " · 📸 proof in" : ""}</div>
+            <div class="addr">${wf ? esc(forfeitText(wf, g.mult || 1)) : esc(b.a)}</div>
           </div>
+          ${owed || g.photo ? (g.photo
+              ? `<button class="proofthumb" data-photo="${i}" title="view / replace photo">
+                   <img src="${PHOTO_BASE + encodeURIComponent(g.photo)}" alt="proof"></button>`
+              : `<button class="proofadd" data-photo="${i}" title="add photo">📷</button>`)
+            : ""}
           ${myBan.includes(b.n) ? `<span class="placed" title="your banana">🍌</span>`
-            : (!isTarget && banLeft > 0) ? `<button class="trap" data-trap="${i}">🍌 trap</button>` : ""}
+            : (!isTarget && banLeft > 0) ? `<button class="trap" data-trap="${i}">🍌</button>` : ""}
         </div>`;
       }
       const seen = rivals.includes(b.n);
@@ -763,6 +798,9 @@ function renderGuessList(){
   });
   el.querySelectorAll("[data-trap]").forEach(b => b.onclick = () => {
     notice = null; bananaPending = BARS[+b.dataset.trap].n; sheetArmedAt = Date.now(); render();
+  });
+  el.querySelectorAll("[data-photo]").forEach(b => b.onclick = () => {
+    notice = null; photoSheet = BARS[+b.dataset.photo].n; render();
   });
   const r = document.getElementById("retry");
   if(r) r.onclick = () => submitGuess(failedGuess);
@@ -797,6 +835,49 @@ function attachGuessSheet(){
     </div>`);
   armButton(document.getElementById("yes"), () => submitGuess(bar.n));
   document.getElementById("no").onclick = () => { pending = null; render(); };
+}
+
+/* View / replace the proof photo for any pub the team has already drunk at. */
+function attachPhotoSheet(){
+  const bar = photoSheet;
+  const g   = (state.my_guesses || []).find(x => x.bar === bar);
+  if(!g){ photoSheet = null; return; }
+  const wf   = (!g.correct && state.wheel !== false && g.rig_d != null)
+               ? forfeitOf(team, g) : null;
+  const has  = !!g.photo;
+  el.insertAdjacentHTML("beforeend", `
+    <div class="sheet">
+      <div class="sheet-inner">
+        <h2>${esc(bar)}</h2>
+        <p>${wf ? "Forfeit dealt here: <b style='color:#f0d98a'>" +
+                  esc(forfeitText(wf, g.mult || 1)) + "</b>" +
+                  (g.mult > 1 ? " 🍌" : "")
+                : "No forfeit owed here."}</p>
+        ${has
+          ? `<img class="bigshot" src="${PHOTO_BASE + encodeURIComponent(g.photo)}" alt="proof">`
+          : `<div class="hint alert" style="margin-bottom:14px"><b>No photo yet.</b>
+               ${wf && !wf.free ? "This round still owes proof." : "You can still add one."}</div>`}
+        ${uploading
+          ? `<button class="btn" style="text-align:center" disabled>Uploading…</button>`
+          : `<div class="row" style="margin-bottom:10px">
+               <button class="btn primary" style="min-height:54px;text-align:center;margin:0"
+                       id="pscam">📸 ${has ? "Retake" : "Take photo"}</button>
+               <button class="btn ghost" style="min-height:54px;text-align:center;margin:0"
+                       id="pslib">🖼️ Library</button>
+             </div>
+             <input type="file" accept="image/*" capture="environment" id="psfilecam" hidden>
+             <input type="file" accept="image/*" id="psfilelib" hidden>`}
+        <button class="btn ghost" style="text-align:center;margin:0" id="psclose">Close</button>
+      </div>
+    </div>`);
+  [["pscam", "psfilecam"], ["pslib", "psfilelib"]].forEach(([bid, fid]) => {
+    const btn = document.getElementById(bid), fi = document.getElementById(fid);
+    if(!btn || !fi) return;
+    btn.onclick = () => openPicker(fi);
+    fi.onchange = () => { pickerOpen = false;
+                          if(fi.files && fi.files[0]) uploadProof(bar, fi.files[0]); };
+  });
+  document.getElementById("psclose").onclick = () => { photoSheet = null; render(); };
 }
 
 function attachBananaSheet(){
@@ -876,8 +957,9 @@ function renderCooldown(left, last){
   [["proofcam", "prooffilecam"], ["prooflib", "prooffilelib"]].forEach(([bid, fid]) => {
     const btn = document.getElementById(bid), fi = document.getElementById(fid);
     if(!btn || !fi) return;
-    btn.onclick  = () => fi.click();
-    fi.onchange  = () => { if(fi.files && fi.files[0]) uploadProof(last.bar, fi.files[0]); };
+    btn.onclick  = () => openPicker(fi);
+    fi.onchange  = () => { pickerOpen = false;
+                           if(fi.files && fi.files[0]) uploadProof(last.bar, fi.files[0]); };
   });
 }
 
@@ -1141,16 +1223,23 @@ function renderAdmin(){
     </div>`;
   }).join("");
 
-  h(`
-    <h1>Admin</h1>
-    <p class="sub">Status: <b>${g.status}</b> ·
-      ${TEAMS.map(t => `${t} ${sc[t] || 0}`).join(" · ")}</p>
+  const TABS = [
+    { k: "game",  label: "Game"  },
+    { k: "teams", label: "Teams" },
+    { k: "wheel", label: "Wheel" },
+    { k: "feed",  label: "Feed"  },
+  ];
+  const needsTarget = !g.target_bar;
+  const owedCount = TEAMS.filter(t => {
+    const last = feed.filter(x => x.team === t)[0];
+    if(!last || last.correct || last.photo || !g.wheel_enabled) return false;
+    const w = admin.unlocks && admin.unlocks[t] ? new Date(admin.unlocks[t]).getTime() : 0;
+    return last.rig_d != null && !last.rig_f && !(w > new Date(last.at).getTime());
+  }).length;
 
-    ${!g.target_bar ? `<div class="hint alert">
-      <b>No target set.</b> Every guess will come back wrong and nobody can bank the ${FIND_PTS} pts.
-      Set it below before you send the link out.</div>` : ""}
+  const P = {};
 
-    <label>Teams</label>
+  P.teams = `
     ${teamCards}
 
     <label>All routes</label>
@@ -1158,8 +1247,21 @@ function renderAdmin(){
     <div class="maplegend">${TEAMS.map(t =>
       `<span><i style="background:${TEAM_COLOR[t]}"></i>${t}</span>`).join("")}</div>
 
+    <label>Unlock a team now (clears cooldown &amp; proof gate)</label>
+    <div class="row" style="margin-bottom:10px">
+      ${TEAMS.map(t => `<button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
+        data-unlock="${t}">${t}</button>`).join("")}
+    </div>
+
+    <label>🍌 Bananas placed</label>
     ${bans.length ? `<div class="card" style="font-size:13px;color:var(--dim)">
-       ${bans.map(b => `🍌 ${b.team} trapped ${esc(b.bar)}`).join("<br>")}</div>` : ""}
+       ${bans.map(b => `🍌 ${b.team} trapped ${esc(b.bar)}`).join("<br>")}</div>`
+      : `<p class="wnote">None placed yet.</p>`}`;
+
+  P.game = `
+    ${needsTarget ? `<div class="hint alert">
+      <b>No target set.</b> Every guess will come back wrong and nobody can bank the ${FIND_PTS} pts.
+      Set it below before you send the link out.</div>` : ""}
 
     <label>Target bar</label>
     <select id="target">
@@ -1171,31 +1273,41 @@ function renderAdmin(){
 
     <label>Cooldown (minutes)</label>
     <input id="cd" type="number" min="0" max="60" value="${Math.round(g.cooldown_seconds/60)}">
+    ${g.cooldown_seconds === 0
+      ? `<p class="warn">⚠ Cooldown is 0 — teams can guess back to back.</p>` : ""}
 
     <label>Hint text</label>
     <input id="hint" value="${esc(g.hint_text || "")}" placeholder="e.g. He's on Bořivojova.">
 
-    <label>Show hint after N wrong guesses (currently ${g.hint_after})</label>
-    <input id="hintafter" type="number" min="1" max="11" value="${g.hint_after}">
-
-    <label>Forfeit wheel</label>
-    <button class="btn ghost" style="text-align:center" id="wheel">
-      ${g.wheel_enabled ? "ON — tap to disable" : "OFF — tap to enable"}
-    </button>
-
-    <label>Wheel segments</label>
-    ${wheelEditorHTML(g)}
+    <label>Show hint after N wrong guesses</label>
+    <input id="hintafter" type="number" min="1" max="17" value="${g.hint_after}">
 
     <label>Reveal rivals' bars to everyone</label>
     <button class="btn ghost" style="text-align:center" id="rivals">
       Currently ${g.show_rivals ? "SHOWN — tap to hide" : "hidden — tap to show"}
     </button>
 
-    <label>Unlock a team now (clears cooldown &amp; proof gate)</label>
+    <label>Change admin passphrase</label>
     <div class="row" style="margin-bottom:10px">
-      ${TEAMS.map(t => `<button class="btn ghost" style="min-height:50px;text-align:center;margin:0"
-        data-unlock="${t}">${t}</button>`).join("")}
+      <input id="newpass" autocomplete="off" placeholder="new passphrase" style="margin:0">
+      <button class="btn ghost" style="min-height:50px;text-align:center;margin:0" id="savepass">Save</button>
     </div>
+
+    <label>Danger</label>
+    <button class="btn danger" style="text-align:center" id="end">End game &amp; reveal scores</button>
+    <button class="btn ghost" style="text-align:center;border-color:var(--red);color:#ff9aa0"
+            id="reset">Reset everything</button>`;
+
+  P.wheel = `
+    <label>Forfeit wheel</label>
+    <button class="btn ghost" style="text-align:center" id="wheel">
+      ${g.wheel_enabled ? "ON — tap to disable" : "OFF — tap to enable"}
+    </button>
+    ${!g.wheel_enabled ? `<p class="wnote">With the wheel off, wrong guesses cost only time
+      and no proof photos are required.</p>` : ""}
+
+    <label>Segments &amp; odds</label>
+    ${wheelEditorHTML(g)}
 
     <label>🎯 Rig a team's next wheel spin</label>
     <div class="row" style="margin-bottom:10px">
@@ -1218,20 +1330,9 @@ function renderAdmin(){
           <span>🎯 ${t} → ${d.free ? "FREE PASS" : rg.c + " × " + d.text}</span>
           <button class="trap" style="min-width:60px;min-height:36px" data-unrig="${t}">clear</button>
         </div>`;
-      }).join("")}</div>` : ""}
+      }).join("")}</div>` : ""}`;
 
-    <label>Change admin passphrase</label>
-    <div class="row" style="margin-bottom:10px">
-      <input id="newpass" autocomplete="off" placeholder="new passphrase" style="margin:0">
-      <button class="btn ghost" style="min-height:50px;text-align:center;margin:0" id="savepass">Save</button>
-    </div>
-
-    <label>Danger</label>
-    <button class="btn danger" style="text-align:center" id="end">End game &amp; reveal scores</button>
-    <button class="btn ghost" style="text-align:center;border-color:var(--red);color:#ff9aa0"
-            id="reset">Reset everything</button>
-
-    <label>Live feed</label>
+  P.feed = `
     <div class="feed">
       ${feed.map(x => `<div>
         <span class="t">${new Date(x.at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>
@@ -1242,9 +1343,26 @@ function renderAdmin(){
         ${x.photo ? `<a href="${PHOTO_BASE + encodeURIComponent(x.photo)}" target="_blank">
            <img src="${PHOTO_BASE + encodeURIComponent(x.photo)}" alt="proof"></a>` : ""}
       </div>`).join("") || '<div style="color:var(--dim)">No guesses yet.</div>'}
+    </div>`;
+
+  h(`
+    <h1 style="margin-bottom:2px">Admin</h1>
+    <p class="sub" style="margin-bottom:2px">${esc(g.status)} ·
+      ${TEAMS.map(t => `${t} ${sc[t] || 0}`).join(" · ")}</p>
+
+    <div class="tabs">
+      ${TABS.map(t => `<button data-tab="${t.k}" class="${adminTab === t.k ? "on" : ""}">
+        ${t.label}${(t.k === "game" && needsTarget) || (t.k === "teams" && owedCount)
+          ? ' <span class="dot">●</span>' : ""}</button>`).join("")}
     </div>
+
+    ${P[adminTab] || P.game}
     <p class="foot"><a href="#" style="color:var(--dim)">← back to game</a></p>
   `);
+
+  el.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
+    adminTab = b.dataset.tab; wheelDraft = wheelDraft; window.scrollTo(0, 0); renderAdmin();
+  });
 
   Object.entries(keep).forEach(([id, v]) => {
     const n = document.getElementById(id);
@@ -1252,53 +1370,60 @@ function renderAdmin(){
   });
   if(scrollY) window.scrollTo(0, scrollY);   // editing controls sit far down the page
 
-  mountMap("amap", TEAMS.map(t => ({
-    team: t, color: TEAM_COLOR[t],
-    bars: feed.filter(x => x.team === t).slice().reverse().map(x => x.bar),
-    found: (feed.find(x => x.team === t && x.correct) || {}).bar,
-  })), { bananas: bans.map(b => b.bar) });
+  /* Only the active tab's controls exist, so every lookup is optional. */
+  const on = (id, ev, fn) => { const n = document.getElementById(id); if(n) n[ev] = fn; };
 
-  document.getElementById("target").onchange = e => adminCall("set_target", e.target.value);
-  document.getElementById("cd").onchange = e => {
+  if(document.getElementById("amap")){
+    mountMap("amap", TEAMS.map(t => ({
+      team: t, color: TEAM_COLOR[t],
+      bars: feed.filter(x => x.team === t).slice().reverse().map(x => x.bar),
+      found: (feed.find(x => x.team === t && x.correct) || {}).bar,
+    })), { bananas: bans.map(b => b.bar) });
+  }
+
+  on("target", "onchange", e => adminCall("set_target", e.target.value));
+  on("cd", "onchange", e => {
     const m = parseInt(e.target.value, 10);
     if(Number.isNaN(m) || m < 0){ e.target.value = Math.round(g.cooldown_seconds/60); return; }
     adminCall("set_cooldown", String(m * 60));
-  };
-  document.getElementById("hint").onchange = e => adminCall("set_hint", e.target.value);
-  document.getElementById("hintafter").onchange = e => {
+  });
+  on("hint", "onchange", e => adminCall("set_hint", e.target.value));
+  on("hintafter", "onchange", e => {
     const n = parseInt(e.target.value, 10);
     if(Number.isNaN(n) || n < 1){ e.target.value = g.hint_after; return; }
     adminCall("set_hint_after", String(n));
-  };
-  document.getElementById("wheel").onclick  = () => adminCall("set_wheel", g.wheel_enabled ? "false" : "true");
-  wireWheelEditor(g);
-  document.getElementById("rivals").onclick = () => adminCall("set_rivals", g.show_rivals ? "false" : "true");
+  });
+  on("wheel", "onclick", () => adminCall("set_wheel", g.wheel_enabled ? "false" : "true"));
+  if(adminTab === "wheel") wireWheelEditor(g);
+  on("rivals", "onclick", () => adminCall("set_rivals", g.show_rivals ? "false" : "true"));
   el.querySelectorAll("[data-unlock]").forEach(b =>
     b.onclick = () => adminCall("unlock", b.dataset.unlock));
-  document.getElementById("rigset").onclick = () => {
+  on("rigset", "onclick", () => {
     const t = document.getElementById("rigteam").value;
     const d = document.getElementById("rigdrink").value;
     const c = document.getElementById("rigcount").value;
     adminCall("set_rig", t + "|" + d + "|" + c);
-  };
+  });
   el.querySelectorAll("[data-unrig]").forEach(b =>
     b.onclick = () => adminCall("clear_rig", b.dataset.unrig));
-  document.getElementById("savepass").onclick = async () => {
+  on("savepass", "onclick", async () => {
     const v = document.getElementById("newpass").value.trim();
     if(!v) return;
+    if(v.length < 6 &&
+       !confirm("\"" + v + "\" is short — anyone with the game link can try to guess it. Use it anyway?")) return;
     if(!confirm("Change the admin passphrase to \"" + v + "\"? Don't lose it.")) return;
     try{
       const r = await rpc("stag_admin", { p_pass: adminPass, p_action: "set_pass", p_value: v });
       if(!r.ok){ alert(r.message || "Rejected"); return; }
       adminPass = v; admin = r; renderAdmin();
     }catch(e){ alert("Network failed — try again"); }
-  };
-  document.getElementById("end").onclick = () => {
+  });
+  on("end", "onclick", () => {
     if(confirm("End the game and show final scores on all 15 phones?")) adminCall("end_game");
-  };
-  document.getElementById("reset").onclick = () => {
+  });
+  on("reset", "onclick", () => {
     if(confirm("Wipe every guess, banana and photo record, and restart? This cannot be undone.")) adminCall("reset");
-  };
+  });
 }
 
 function esc(s){
