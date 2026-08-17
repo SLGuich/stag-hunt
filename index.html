@@ -109,6 +109,10 @@
     padding:10px 16px;margin-top:10px;font-size:17px}
   .proofbtn{background:#fff;color:var(--red);text-align:center;font-weight:800;min-height:54px;
     width:250px;margin:14px auto 0;border-radius:12px;font-size:16px}
+  .proofrow{display:flex;gap:8px;width:100%;max-width:330px;margin:0 auto}
+  .proofrow .proofbtn{width:auto;flex:1;font-size:14px;padding:0 6px}
+  .proofrow .proofbtn.alt{background:rgba(255,255,255,.16);color:#fff;
+    border:1px solid rgba(255,255,255,.55)}
   .proofok{background:rgba(0,0,0,.25);border-radius:12px;padding:8px 14px;margin-top:14px;
     font-weight:700;display:flex;align-items:center;gap:10px}
   .proofok img{height:56px;border-radius:8px;display:block}
@@ -846,8 +850,12 @@ function renderCooldown(left, last){
                  <img src="${PHOTO_BASE + encodeURIComponent(last.photo)}" alt="proof"></div>`
             : uploading
               ? `<div class="proofok">📸 Uploading…</div>`
-              : `<button class="proofbtn" id="proofbtn">📸 UPLOAD PROOF OF THE ROUND</button>
-                 <input type="file" accept="image/*" capture="environment" id="prooffile" hidden>`
+              : `<div class="proofrow">
+                   <button class="proofbtn" id="proofcam">📸 TAKE PHOTO</button>
+                   <button class="proofbtn alt" id="prooflib">🖼️ FROM LIBRARY</button>
+                 </div>
+                 <input type="file" accept="image/*" capture="environment" id="prooffilecam" hidden>
+                 <input type="file" accept="image/*" id="prooffilelib" hidden>`
         ) : ""}
         ${left > 0
           ? `<p class="timer" id="cdtimer">${mmss(left)}</p>
@@ -865,12 +873,12 @@ function renderCooldown(left, last){
     const b = document.getElementById("spinbtn");
     if(b) b.onclick = () => spinWheel(f, spunKey, mult);
   }
-  const pb = document.getElementById("proofbtn");
-  if(pb){
-    const fi = document.getElementById("prooffile");
-    pb.onclick = () => fi.click();
-    fi.onchange = () => uploadProof(last.bar, fi.files[0]);
-  }
+  [["proofcam", "prooffilecam"], ["prooflib", "prooffilelib"]].forEach(([bid, fid]) => {
+    const btn = document.getElementById(bid), fi = document.getElementById(fid);
+    if(!btn || !fi) return;
+    btn.onclick  = () => fi.click();
+    fi.onchange  = () => { if(fi.files && fi.files[0]) uploadProof(last.bar, fi.files[0]); };
+  });
 }
 
 function renderFound(left){
