@@ -152,7 +152,9 @@
   .segmain{display:flex;gap:8px;align-items:center}
   .segopts{display:flex;gap:8px;align-items:center;margin-top:6px}
   .seg input{margin:0;flex:1;padding:12px}
-  .seg .wnum{flex:none;width:74px;padding:10px;text-align:center;font-weight:700}
+  .seg .wnum{flex:none;width:66px;padding:10px;text-align:center;font-weight:700}
+  .seg .lockwrap{flex:none;display:flex;align-items:center;gap:2px;font-size:13px;color:var(--dim)}
+  .seg .lockn{width:48px;padding:10px 4px;margin:0;text-align:center;font-weight:700}
   .seg .pct{flex:1;font-size:15px;font-weight:700;color:var(--amber);
     font-variant-numeric:tabular-nums}
   .seg .free{min-width:70px;min-height:44px;border-radius:10px;font-size:12px;
@@ -1021,7 +1023,12 @@ function renderOver(){
 let wheelDraft = null;
 let wheelScope = "";      // "" = default wheel, otherwise a pub name
 
-const cleanOpts = o => (o || []).map(x => ({ t: x.t || "", free: !!x.free, w: weightOf(x) }));
+const afterOf = o => {
+  const n = parseInt(o && o.after, 10);
+  return isFinite(n) && n > 0 ? Math.min(30, n) : 0;
+};
+const cleanOpts = o => (o || []).map(x => ({ t: x.t || "", free: !!x.free,
+                                             w: weightOf(x), after: afterOf(x) }));
 const sameOpts  = (a, b) => JSON.stringify(cleanOpts(a)) === JSON.stringify(cleanOpts(b));
 
 function wheelPreviewHTML(opts){
@@ -1039,9 +1046,10 @@ function wheelPreviewHTML(opts){
   const labels = opts.map((o, i) => {
     const gm = geo[i];
     if(gm.span < 12) return "";
-    const txt = (o.t || "?").toUpperCase();
+    const txt = (afterOf(o) ? "🔒" : "") + (o.t || "?").toUpperCase();
     return `<text transform="rotate(${gm.mid.toFixed(2)}) translate(0 -${r * 0.60})"
               text-anchor="middle" font-size="6.5" font-weight="700"
+              opacity="${afterOf(o) ? ".55" : "1"}"
               fill="${o.free ? "#8ee79f" : "#fff"}">${esc(txt.slice(0, 13))}</text>`;
   }).join("");
   return `<svg id="wpreview" class="wpreview" width="160" height="160" viewBox="-70 -70 140 140">
@@ -1088,11 +1096,18 @@ function wheelEditorHTML(g){
   const freeN = draft.filter(o => o.free).length;
   const total = draft.reduce((s, o) => s + weightOf(o), 0);
   const pcts  = segGeometry(draft).map(s => s.pct);
+  const gated = draft.filter(o => afterOf(o) > 0);
+  const openN = draft.length - gated.length;
   return `
     ${wheelPreviewHTML(draft)}
     <p class="wnote">${draft.length} segments · ${freeN} free pass${freeN === 1 ? "" : "es"}
       · shares total ${total}${total === 100 ? " (reads straight as %)" : ""}.
       Free passes owe no photo.</p>
+    ${gated.length ? `<p class="wnote" style="color:#f0d98a">🔒 ${gated.map(o =>
+        esc(o.t) + " appears after " + o.after + " pub" + (o.after === 1 ? "" : "s")).join(" · ")}.
+      Until then the other ${draft.length - gated.length} share the wheel.</p>` : ""}
+    ${openN < 2 ? `<p class="warn">⚠ At least 2 segments must be unlocked from the
+      first pub — set more 🔒 values to 0.</p>` : ""}
     ${draft.map((o, i) => `
       <div class="seg">
         <div class="segmain">
@@ -1105,6 +1120,9 @@ function wheelEditorHTML(g){
           <input class="wnum" type="number" min="1" max="1000" step="1"
                  data-segw="${i}" value="${weightOf(o)}">
           <span class="pct" data-segpct="${i}">${pcts[i].toFixed(pcts[i] < 10 ? 1 : 0)}%</span>
+          <span class="lockwrap" title="unlocks after this many pubs — 0 = always">🔒
+            <input class="lockn" type="number" min="0" max="30" step="1"
+                   data-segafter="${i}" value="${afterOf(o)}"></span>
           <button class="free ${o.free ? "on" : ""}" data-segfree="${i}"
                   title="free pass — nobody drinks">FREE</button>
         </div>
@@ -1135,9 +1153,12 @@ function syncSaveBtn(draft, g){
   const save = document.getElementById("savewheel");
   if(!save) return;
   const blank = draft.some(o => !o.t.trim());
-  const ok = (!sameOpts(draft, scopeBase(g)) || (wheelScope && !scopeHasOverride())) && !blank;
+  const tooLocked = draft.filter(o => !afterOf(o)).length < 2;
+  const ok = (!sameOpts(draft, scopeBase(g)) || (wheelScope && !scopeHasOverride()))
+             && !blank && !tooLocked;
   save.disabled = !ok;
-  save.textContent = blank ? "Every segment needs a name"
+  save.textContent = tooLocked ? "Need 2 segments unlocked at pub 0"
+                   : blank ? "Every segment needs a name"
                    : ok ? (wheelScope ? "Save wheel for " + wheelScope
                                       : "Save default wheel — " + draft.length + " segments")
                    : "Saved";
@@ -1196,6 +1217,17 @@ function wireWheelEditor(g){
     };
     inp.onblur = () => { wheelDraft = draft; renderAdmin(); };
   });
+  el.querySelectorAll("[data-segafter]").forEach(inp => {
+    inp.oninput = () => {
+      const n = parseInt(inp.value, 10);
+      draft[+inp.dataset.segafter].after = (isFinite(n) && n > 0) ? Math.min(30, n) : 0;
+      wheelDraft = draft;
+      const pv = document.getElementById("wpreview");
+      if(pv) pv.outerHTML = wheelPreviewHTML(draft);
+      syncSaveBtn(draft, g);
+    };
+    inp.onblur = () => { wheelDraft = draft; renderAdmin(); };
+  });
   const even = document.getElementById("segeven");
   if(even) even.onclick = () => {
     const each = Math.round(100 / draft.length);
@@ -1215,8 +1247,13 @@ function wireWheelEditor(g){
   const save = document.getElementById("savewheel");
   if(save) save.onclick = () => {
     const opts = draft.map(o => ({ t: o.t.trim(), w: weightOf(o),
-                                   ...(o.free ? { free: true } : {}) }));
+                                   ...(o.free ? { free: true } : {}),
+                                   ...(afterOf(o) ? { after: afterOf(o) } : {}) }));
     if(opts.length < 2 || opts.length > 8 || opts.some(o => !o.t)) return;
+    if(opts.filter(o => !o.after).length < 2){
+      alert("At least 2 segments must be available from the first pub — set more 🔒 values to 0.");
+      return;
+    }
     if(opts.every(o => o.free) &&
        !confirm("Every segment is a free pass — nobody will ever drink. Save anyway?")) return;
     wheelDraft = null;
